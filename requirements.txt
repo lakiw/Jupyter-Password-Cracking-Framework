@@ -1,0 +1,6 @@
+# JupyterLab specific modules
+jupyterlab
+ipynb
+
+# Data format modules
+yaml
