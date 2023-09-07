@@ -70,7 +70,8 @@ class PWCrackerMgr:
                         break
         except Exception as msg:
             print(f"Exception when trying to open the {self.name} pot file: {filename} : {msg}")
-            return -1
+            return False
+        return True
 
     def load_potfile(self, filename, hash_list):
         """
@@ -132,24 +133,33 @@ class PWCrackerMgr:
 
             -1: If a problem occured
         """
-        num_cracked = 0
+        new_cracks = 0
 
         try:
-            with open(self.main_pot_file) as potfile:
+            # First create a quick hash lookup of cracked passwords so we can
+            # then quickly identify missing passwords we need to add
+            pot_lookup = {}
+            with open(filename) as potfile:
                 for line in potfile:
-                    hash, divider, plain = line.partition(":")
-                    
-                    # I need to index the hash list for quicker lookups, so this is totally inefficient
-                    for cur_hash in hash_list.hashes:
-                        if getattr(cur_hash, self.hash_type) == hash:
-                            if not cur_hash.plaintext:
-                                num_cracked += 1
-                                cur_hash.plaintext = plain
-                                hash_list.hash_types[cur_hash.type]['cracked'] +=1
-                            continue
+                    hash, divider, plain = line.partition(":")             
+                    if hash in pot_lookup:
+                        print(f"Warning, you have duplicate hashes in your potfile {filename}: {hash}:{plain}")
+                    else:
+                        pot_lookup[hash] = True
+
+            # Now go through all the cracked hashes and see if any are missing
+            # If so, append them to the pot file.
+            with open(filename, mode='a') as potfile:
+                for cur_hash in hash_list.hashes:
+                    if cur_hash.plaintext and getattr(cur_hash, self.hash_type) not in pot_lookup:
+                        # Need to add a sanity check if a particular hash isn't supported by the
+                        # cracking program
+                        if getattr(cur_hash, self.hash_type):
+                            new_cracks += 1
+                            potfile.write(f"{getattr(cur_hash, self.hash_type)}:{cur_hash.plaintext}")
 
         except Exception as msg:
             print(f"Exception when trying to parse {self.name} pot file: {msg}")
             return -1
     
-        return num_cracked  
+        return new_cracks  

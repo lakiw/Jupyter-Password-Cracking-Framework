@@ -8,6 +8,10 @@ functions in the Jupyter Notebook
 """
 
 
+# Data analysis and visualization imports
+import matplotlib.pyplot as plt
+
+# Local imports
 from .config_mgmt import load_config
 from .jtr_mgr import JTRMgr
 from .hashcat_mgr import HashcatMgr
@@ -61,6 +65,10 @@ class SessionMgr:
     def load_main_pots(self, verbose=True):
         """
         Responsible for going through the main JtR and Hashcat pots and updating cracked passwords
+        
+        Inputs:
+            verbose: (Bool) If true, will print out more statistics about the
+            new hashes that were loaded
         """
         if self.jtr:
             new_cracks = self.jtr.load_potfile(self.jtr.main_pot_file, self.hash_list) 
@@ -74,7 +82,31 @@ class SessionMgr:
             if new_cracks == -1:
                 print(f"Error loading hashes from the main Hashcat pot file {self.jtr.main_pot_file}")
             elif verbose:
-                print(f"Number of new HC cracked passwords: {new_cracks}") 
+                print(f"Number of new HC cracked passwords: {new_cracks}")
+
+    def update_main_pots(self, verbose=True):
+        """
+        Responsible for updating the main pot files with any new plaintexts that
+        they are missing. This is helpful to sync between JtR and Hashcat
+        cracking sessions
+
+        Inputs:
+            verbose: (Bool) If true, will print out more statistics about the
+            new hashes that were added to each pot file
+        """
+        if self.jtr:
+            new_cracks = self.jtr.update_pot(self.jtr.main_pot_file, self.hash_list) 
+            if new_cracks == -1:
+                print(f"Error updating hashes in the main John the Ripper pot file {self.jtr.main_pot_file}")
+            elif verbose:
+                print(f"Number of new plains added to the JtR pot file: {new_cracks}")
+
+        if self.hc:
+            new_cracks = self.hc.update_pot(self.hc.main_pot_file, self.hash_list) 
+            if new_cracks == -1:
+                print(f"Error updating hashes in the main Hashcat pot file {self.jtr.main_pot_file}")
+            elif verbose:
+                print(f"Number of new plains added to the Hashcat pot file: {new_cracks}") 
 
     def print_status(self):
         """
@@ -84,3 +116,29 @@ class SessionMgr:
         print("Algorithm     :Total      :Cracked   :Remaining :Percentage")
         for type, info in self.hash_list.hash_types.items():
             print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
+
+    def pie_graph_metadata(self, meta_field, has_plaintext=False):
+        data = {}
+        # Create the statistics
+        for hash in self.hash_list.hashes:
+            if not has_plaintext or hash.plaintext:
+                for target in hash.targets:
+                    if meta_field in target['metadata']:
+                        if target['metadata'][meta_field] in data:
+                            data[target['metadata'][meta_field]] += 1
+                        else:
+                            data[target['metadata'][meta_field]] = 1
+
+        graph_info = {
+            'labels':[],
+            'values':[]
+        }
+
+        for key, value in data.items():
+            graph_info['labels'].append(key)
+            graph_info['values'].append(value)
+
+        fig, ax = plt.subplots()
+        ax.pie(graph_info['values'], labels=graph_info['labels'], autopct='%1.1f%%');
+
+        return

@@ -20,6 +20,6 @@ class HashcatMgr(PWCrackerMgr):
         super().__init__(config)
         
         # Set cracker specific variables (default is JtR since I'm biased)
-        self.pot_extension = ".pot"
-        self.hash_type = "jtr_hash"
-        self.name = "John the Ripper"
+        self.pot_extension = ".potfile"
+        self.hash_type = "hc_hash"
+        self.name = "Hashcat"

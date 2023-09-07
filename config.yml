@@ -6,10 +6,10 @@
       - /mnt/c/github/JohnTheRipper/run/john.pot
   
   hashcat_config:
-    path: "/mnt/c/github/Hashcat/hashcat"
+    path: "/mnt/c/github/hashcat/hashcat"
     main_pot_file: "/mnt/c/research/cmiyc/2023/hashcat.potfile"
     additional_pot_files:
-      - /mnt/c/github/hashcat/Hashcat.potfile
+      - /mnt/c/github/hashcat/hashcat.potfile
   
   session_management:
     main_cracked_list: "/mnt/c/research/cmiyc/2023/cracked_list.pot"

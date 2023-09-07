@@ -4,3 +4,6 @@ ipynb
 
 # Data format modules
 yaml
+
+# Analysis/Graphing modules
+matplotlib
