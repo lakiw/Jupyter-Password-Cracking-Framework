@@ -117,7 +117,36 @@ class SessionMgr:
         for type, info in self.hash_list.hash_types.items():
             print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
 
-    def pie_graph_metadata(self, meta_field, has_plaintext=False):
+    def print_metadata_categories(self):
+        """
+        Prints the metadata categories available to search/graph on
+        """
+
+        # Rather than store this in ingest (which I probably should do)
+        # I'm going to loop through everything and create a lookup dictionary
+        metadata_map = {}
+        for hash in self.hash_list.hashes:
+            for target in hash.targets:
+                for type in target['metadata']:
+                    if type in metadata_map:
+                        metadata_map[type] += 1
+                    else:
+                        metadata_map[type] = 1
+
+        print(f"{'Metadata Type':<20}:Count")
+        for key, value in metadata_map.items():
+            print(f"{key:<20}:{value}")
+
+
+    def pie_graph_metadata(self, meta_field, has_plaintext=False, top_x=None):
+        """
+        Creates a pie graph based on hash metadata
+
+        Inputs:
+            meta_field: (String) The name of the metadata field. Capitalization matters.
+
+            has_plaintext: (Bool) If true, only include hashes that have been cracked
+        """
         data = {}
         # Create the statistics
         for hash in self.hash_list.hashes:
@@ -129,15 +158,35 @@ class SessionMgr:
                         else:
                             data[target['metadata'][meta_field]] = 1
 
+        # Sort the results
+        sorted_data = sorted(data, key=data.get, reverse=True)
+
         graph_info = {
             'labels':[],
             'values':[]
         }
 
-        for key, value in data.items():
-            graph_info['labels'].append(key)
-            graph_info['values'].append(value)
+        num_items = 1
+        the_rest = 0
+        for item in sorted_data:
+            if not top_x or num_items <= top_x:
+                graph_info['labels'].append(item)
+                graph_info['values'].append(data[item])
+            else:
+                the_rest += data[item]
 
+            num_items += 1
+
+        if the_rest != 0:
+            graph_info['labels'].append("The Rest")
+            graph_info['values'].append(the_rest)
+
+        if not graph_info['labels']:
+            print("Sorry, there was no data to graph")
+            if has_plaintext:
+                print("Maybe crack a few more passwords?....")
+            return
+        
         fig, ax = plt.subplots()
         ax.pie(graph_info['values'], labels=graph_info['labels'], autopct='%1.1f%%');
 
