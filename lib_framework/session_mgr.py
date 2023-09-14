@@ -138,7 +138,53 @@ class SessionMgr:
             print(f"{key:<20}:{value}")
 
 
-    def pie_graph_metadata(self, meta_field, has_plaintext=False, top_x=None):
+    def print_metadata_items(self, meta_field):
+        """
+        Prints out every unique metadata item for a particular key.
+        Will also print out counts for the item and percent cracked
+        """
+        data = {}
+
+        # Used to make the printouts pretty
+        longest_name = len(meta_field)
+
+        # Create the statistics
+        for hash in self.hash_list.hashes:
+            for target in hash.targets:
+                if meta_field in target['metadata']:
+                    if target['metadata'][meta_field] in data:
+                        data[target['metadata'][meta_field]]['count'] +=1
+                    else:
+                        data[target['metadata'][meta_field]] = {'count':1,'plaintext':0}
+                        if len(target['metadata'][meta_field]) > longest_name:
+                            longest_name = len(target['metadata'][meta_field])
+                    if hash.plaintext:
+                        data[target['metadata'][meta_field]]['plaintext'] +=1
+
+        print(f"{meta_field:<{longest_name}}:Count :Cracked")
+        for item in data:
+            print(f"{item:<{longest_name}}:{data[item]['count']:<6}:{data[item]['plaintext']}")
+
+    def print_all_plaintext(self, sort_field=None, meta_fields=[], col_width = []):
+        """
+        Prints all the cracked passwords for manual evaluation
+        
+        WARNING: If you've cracked a lot of passwords (which is a good thing!) this
+        can take up a lot of screen realestate.
+
+        Inputs:
+            sort_field: (String) The metavalue field to sort the cracked plaintext
+            values by
+
+            meta_fields: (List) A list of all the metavariable fields to print out
+            along with the cracked passwords
+
+            col_width: (List) How long each metavariable column should be. Needs to be a 1 to 1 mapping
+            with meta_fields. Just makes things easier to read
+        """
+        return
+
+    def pie_graph_metadata(self, meta_field, has_plaintext=False, top_x=None, plot_size=5):
         """
         Creates a pie graph based on hash metadata
 
@@ -187,7 +233,9 @@ class SessionMgr:
                 print("Maybe crack a few more passwords?....")
             return
         
+        plt.rcParams['figure.figsize'] = [plot_size, plot_size]
         fig, ax = plt.subplots()
         ax.pie(graph_info['values'], labels=graph_info['labels'], autopct='%1.1f%%');
 
         return
+

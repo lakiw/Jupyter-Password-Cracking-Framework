@@ -16,7 +16,7 @@
 
   challenge_files:
     street_team:
-      file: "/mnt/c/research/cmiyc/2023/cmiyc_2023_01_street.yaml"
+      file: "/mnt/c/research/cmiyc/2023/small_challenge.yaml"
       format: "cmiyc_2023"
 
   score_info:
