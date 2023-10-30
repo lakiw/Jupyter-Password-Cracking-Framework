@@ -17,6 +17,7 @@ from .jtr_mgr import JTRMgr
 from .hashcat_mgr import HashcatMgr
 from .challenge_specific_functions import load_challenge_files
 from .hash import HashList
+from .target import TargetList
 
 
 class SessionMgr:
@@ -47,14 +48,16 @@ class SessionMgr:
 
         # Load the hashes
         self.hash_list = HashList()
+        self.target_list = TargetList()
         if load_challenge:
             if "challenge_files" in self.config and self.config['challenge_files']:
                 for name, details in self.config['challenge_files'].items():
                     if 'format' not in details:
                         print(f"Error: You need to speficy a format for the Challenge file: {name}")
                         continue
-                    if not load_challenge_files(details, self.hash_list):
-                        print(f"Error: Could not load chellenge file {name}") 
+                    if not load_challenge_files(details, self.hash_list, self.target_list):
+                        print(f"Error: Could not load chellenge file {name}")
+                        raise Exception 
             else:
                 print(f"No challenge files specified in {config_file} so no hashes were loaded")
 
@@ -113,57 +116,41 @@ class SessionMgr:
         Prints uncracked/cracked information broken up by
         hash algorithm
         """
-        print("Algorithm     :Total      :Cracked   :Remaining :Percentage")
-        for type, info in self.hash_list.hash_types.items():
-            print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
+        print("Algorithm      :Total     :Cracked   :Remaining :Percentage")
+        for type, info in self.hash_list.type_info.items():
+            # Don't print out modes/types that don't have any hashes associated with them
+            if info['total'] != 0:
+                print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
 
     def print_metadata_categories(self):
         """
         Prints the metadata categories available to search/graph on
         """
 
-        # Rather than store this in ingest (which I probably should do)
-        # I'm going to loop through everything and create a lookup dictionary
-        metadata_map = {}
-        for hash in self.hash_list.hashes:
-            for target in hash.targets:
-                for type in target['metadata']:
-                    if type in metadata_map:
-                        metadata_map[type] += 1
-                    else:
-                        metadata_map[type] = 1
-
-        print(f"{'Metadata Type':<20}:Count")
-        for key, value in metadata_map.items():
-            print(f"{key:<20}:{value}")
-
+        print(f"{'Metadata Type':<20}:Unique Values")
+        for key, items in self.target_list.meta_lookup.items():
+            print(f"{key:<20}:{len(items.keys())}")
 
     def print_metadata_items(self, meta_field):
         """
         Prints out every unique metadata item for a particular key.
-        Will also print out counts for the item and percent cracked
+        Will also print out counts for the item and number cracked
+
+        Inputs:
+            meta_field: (Str) The metadata key to search on
         """
         data = {}
 
-        # Used to make the printouts pretty
-        longest_name = len(meta_field)
+        # Check to see the key is in the target metadata
+        if meta_field not in self.target_list.meta_lookup:
+            print(f"Error: The field {meta_field} was not in the target list metadata. No data to print out")
+            return
 
-        # Create the statistics
-        for hash in self.hash_list.hashes:
-            for target in hash.targets:
-                if meta_field in target['metadata']:
-                    if target['metadata'][meta_field] in data:
-                        data[target['metadata'][meta_field]]['count'] +=1
-                    else:
-                        data[target['metadata'][meta_field]] = {'count':1,'plaintext':0}
-                        if len(target['metadata'][meta_field]) > longest_name:
-                            longest_name = len(target['metadata'][meta_field])
-                    if hash.plaintext:
-                        data[target['metadata'][meta_field]]['plaintext'] +=1
-
-        print(f"{meta_field:<{longest_name}}:Count :Cracked")
-        for item in data:
-            print(f"{item:<{longest_name}}:{data[item]['count']:<6}:{data[item]['plaintext']}")
+        print(f"{meta_field:<{20}}:Number of Hashes :Cracked")
+        # Loop through the instances of the metadata key
+        for meta_value in self.target_list.meta_lookup[meta_field].keys():
+            stats = self.target_list.get_stats_metadata(meta_field, meta_value, self.hash_list)
+            print(f"{meta_value:<{20}}:{stats['num_hashes']:<17}:{stats['num_cracked']}")
 
     def print_all_plaintext(self, sort_field=None, meta_fields=[], col_width = []):
         """

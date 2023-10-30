@@ -59,14 +59,17 @@ class PWCrackerMgr:
         checked_lines = 0
         try:
             with open(filename) as potfile:
-                for line in potfile:
+
+                # Reading in the lines this way to make unit tests easier with mock
+                lines = potfile.readlines()
+                for line in lines:
                     checked_lines += 1
                     hash, divider, plain = line.partition(":")
                     if not plain:
                         print(f"Exception, the file {filename} did not look like a potfile")
                         print(f"Offending line: {line}")
                         return False
-                    if checked_lines > 5:
+                    if checked_lines > 10:
                         break
         except Exception as msg:
             print(f"Exception when trying to open the {self.name} pot file: {filename} : {msg}")
@@ -92,28 +95,28 @@ class PWCrackerMgr:
             print(f"Can not load potfile {filename} since it did not look like a potfile")
             return -1
 
-        num_cracked = 0
+        new_cracks = 0
         try:
             with open(filename) as potfile:
-                for line in potfile:
+                lines = potfile.readlines()
+                for line in lines:
                     hash, divider, plain = line.partition(":")
+
+                    # Normalize the hash to remove any passwor cracker specific
+                    # formatting
+                    hash = self.normalize_hash(hash)
                     
-                    # I need to index the hash list for quicker lookups, so this is totally inefficient
-                    for cur_hash in hash_list.hashes:
-                        if getattr(cur_hash, self.hash_type) == hash:
-                            if not cur_hash.plaintext:
-                                num_cracked += 1
-                                cur_hash.plaintext = plain
-                                hash_list.hash_types[cur_hash.type]['cracked'] +=1
-                            continue
+                    # Add the hash
+                    # If the hash has already been added/cracked nothing changes
+                    new_cracks += hash_list.add(hash,plaintext=plain)
 
         except Exception as msg:
-            print(f"Exception when trying to parse JtR pot file: {msg}")
+            print(f"Exception when trying to parse the pot file: {msg}")
             return -1
     
-        return num_cracked
+        return new_cracks
 
-    def update_pot(self, filename, hash_list):
+    def update_potfile(self, filename, hash_list):
         """
         Updates a potfile. Unsafe to call directly
         if you accidentally specify the wrong file
@@ -140,26 +143,76 @@ class PWCrackerMgr:
             # then quickly identify missing passwords we need to add
             pot_lookup = {}
             with open(filename) as potfile:
-                for line in potfile:
-                    hash, divider, plain = line.partition(":")             
-                    if hash in pot_lookup:
+                lines = potfile.readlines()
+                for line in lines:
+                    hash, divider, plain = line.partition(":")
+
+                    # Need to do things like strip out password cracker specific
+                    # storage techniques for hashes
+                    standard_hash = self.normalize_hash(hash)
+                    if not standard_hash:
+                        print(f"Skipping loading malformed hash")
+                        continue
+
+                    if standard_hash in pot_lookup:
                         print(f"Warning, you have duplicate hashes in your potfile {filename}: {hash}:{plain}")
                     else:
-                        pot_lookup[hash] = True
+                        pot_lookup[standard_hash] = plain
 
             # Now go through all the cracked hashes and see if any are missing
             # If so, append them to the pot file.
             with open(filename, mode='a') as potfile:
-                for cur_hash in hash_list.hashes:
-                    if cur_hash.plaintext and getattr(cur_hash, self.hash_type) not in pot_lookup:
+                for index, cur_hash in hash_list.hashes.items():
+                    if cur_hash.plaintext and cur_hash.hash not in pot_lookup:
                         # Need to add a sanity check if a particular hash isn't supported by the
                         # cracking program
-                        if getattr(cur_hash, self.hash_type):
+                        formatted_hash = self.format_hash(cur_hash.hash, hash_list.type_lookup[index])
+                        if formatted_hash:
                             new_cracks += 1
-                            potfile.write(f"{getattr(cur_hash, self.hash_type)}:{cur_hash.plaintext}")
-
+                            potfile.write(f"{formatted_hash}:{cur_hash.plaintext}")
+                    # Quick sanity check to make sure the plains match
+                    # Hopefully this can help catch data corruption if it is happening
+                    elif cur_hash.plaintext:
+                        if pot_lookup[cur_hash.hash] != cur_hash.plaintext:
+                            print(f"Warning, the hash {cur_hash.hash} in the potfile has a different plaintext then in the cracked list")
+                            print(f"Potfile_Plaintext:{pot_lookup[cur_hash.hash]}")
+                            print(f"Main_Hashlist_Plaintext:{cur_hash.plaintext}")
         except Exception as msg:
             print(f"Exception when trying to parse {self.name} pot file: {msg}")
             return -1
     
-        return new_cracks  
+        return new_cracks
+
+    def normalize_hash(self, hash):
+        """
+        Stub function for any normalization to convert from a password cracker
+        hash format to a "normalized" format used by this analysis platform
+
+        For example, remove the $dynamic_X$ prefix of JtR hashes. Those are
+        super helpful but that info is kept in the type_lookup datastructure of
+        HashList().
+
+        Inputs:
+            hash: (str) The password hash to normalize
+
+        Returns:
+            normalized_hash: (str) The normalized verion of the hash
+        """
+        return hash
+    
+    def format_hash(self, hash, type):
+        """
+        Stub function for any support to convert from a normalized hash to
+        the format the password cracker expects in the pot file
+
+        For example, add the $dynamic_X$ prefix of JtR hashes.
+
+        Inputs:
+            hash: (str) The password hash to normalize
+
+            type: (str) The type to format this hash as
+
+        Returns:
+            normalized_hash: (str) The normalized verion of the hash
+        """
+        return hash

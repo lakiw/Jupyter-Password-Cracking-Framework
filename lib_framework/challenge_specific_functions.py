@@ -11,10 +11,9 @@ import yaml
 
 # Local imports
 from .hash_fingerprint import hash_fingerprint
-from .hash import Hash
 
 
-def load_challenge_files(details, hash_list):
+def load_challenge_files(details, hash_list, target_list):
     """
     Top level function responsible for loading the hashes from a file
 
@@ -27,6 +26,8 @@ def load_challenge_files(details, hash_list):
 
         hash_list: (HashList) Place to store the hashes being loaded
 
+        target_list: (TargetList) Place to store the targets being loaded
+
     Returns:
         True: The hash file was loaded sucessfully
 
@@ -35,7 +36,7 @@ def load_challenge_files(details, hash_list):
 
     try:
         if details['format'] == 'cmiyc_2023':
-            return _load_cmiyc_2023(details, hash_list)
+            return _load_cmiyc_2023(details, hash_list, target_list)
         
         else:
             print(f"Error, format {details['format']} not supported. Add it to challenge_specific_functions.py")
@@ -46,7 +47,7 @@ def load_challenge_files(details, hash_list):
         return False
     
 
-def _load_cmiyc_2023(details, hash_list):
+def _load_cmiyc_2023(details, hash_list, target_list):
     """
     Loads the challenge file from the cmiyc 2023 contest
 
@@ -55,13 +56,16 @@ def _load_cmiyc_2023(details, hash_list):
 
         hash_list: (HashList) Place to store the hashes being loaded
 
+        target_list: (TargetList) Place to store the targets being loaded
+
     Returns:
         True: The hash file was loaded sucessfully
 
         False: An error occured loading the hashes
     """
     print("Starting to load challenge yaml file. This may take a minute or two")
-    raw_values = yaml.safe_load(open(details['file']))
+    with open(details['file']) as challenge_file:
+        raw_values = yaml.safe_load(challenge_file)
 
     # This challenge had raw-MD5, raw-sha1, and raw-sha256
     length_helper = {
@@ -74,10 +78,11 @@ def _load_cmiyc_2023(details, hash_list):
         for username, user_info in user_list.items():
             hash_info = hash_fingerprint(user_info['PasswordHash'], length_helper)
             if not hash_info:
-                print(f"Error, passed invalid length helper to the hash_fingerprint function: {length_helper}")
+                print(f"Error, likely passed invalid length helper to the hash_fingerprint function: {length_helper}")
                 raise Exception
 
-            # Add the type if it hasn't been encountered before
+            # Add the type
+            # If the type has been added before this will not make any changes
             hash_list.add_type(
                 type=hash_info['type'],
                 jtr_mode=hash_info['jtr_mode'],
@@ -85,23 +90,19 @@ def _load_cmiyc_2023(details, hash_list):
                 cost=hash_info['cost']
             )
 
-            # Save the metadata
-            metadata = {}
-            for item, value in user_info.items():
-                if item != "PasswordHash":
-                    metadata[item] = value
-
             # Save the hash
-            hash = Hash(
-                orig_hash=user_info['PasswordHash'],
-                type=hash_info['type'],
-                jtr_hash=hash_info['jtr_hash'],
-                hc_hash=hash_info['hc_hash'],
-                submit_hash=user_info['PasswordHash'],
-                source=details['file'],
-                username=username,
-                metadata=metadata
-            )
-            hash_list.add(hash)
+            hash_list.add(user_info['PasswordHash'], type=hash_info['type'])
+            
+            # Get the hash index to add that to the target info
+            hash_index = hash_list.hash_lookup[user_info['PasswordHash']]
+            
+            # Add the target
+            metadata = {}
+            for key, value in user_info.items():
+                # Remove the password hash from target metadata
+                if key != 'PasswordHash':
+                    metadata[key] = value
+
+            target_list.add(metadata=metadata, hashes=[hash_index])
 
     return True

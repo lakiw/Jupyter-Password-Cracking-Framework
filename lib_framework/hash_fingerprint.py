@@ -76,14 +76,6 @@ def hash_fingerprint(raw_hash, length_helper={}):
         hash_info['type'] = "ssha"
         hash_info['cost'] = "medium"
 
-    # LDAP SSHA1
-    # I don't know if JtR supports this
-    elif raw_hash.startswith("{SSHA}"):
-        hash_info['jtr_mode'] = None
-        hash_info['hc_mode'] = "111"
-        hash_info['type'] = "ssha512"
-        hash_info['cost'] = "medium"
-
     # Potentially raw_sha256
     elif len(raw_hash) in length_helper:
         hash_info = _get_hash_info(length_helper[len(raw_hash)], raw_hash)

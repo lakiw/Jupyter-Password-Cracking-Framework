@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+
+
+"""
+Unit tests for SessionMgr
+"""
+
+
+import unittest
+from unittest.mock import patch, mock_open
+import io
+import sys
+
+# Functions and classes to tests
+from ..session_mgr import SessionMgr
+from ..config_mgmt import load_config
+
+
+class Test_SessionMgr(unittest.TestCase):
+    """
+    Responsible for testing SessionMgr and related functionality
+    """
+
+    def test_load_config(self):
+        """
+        Basic checks for loading a config file
+        Putting this here so I can mock the results for calls to
+        SessionMgr in later tests
+        """
+
+        # Suppress stdout to clean up unittest output (since there will be a lot of expected/caused failures
+        suppress_text = io.StringIO()
+        sys.stdout = suppress_text
+
+        # Test invalid data loaded
+        test_data = "bad_data"
+        with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data) as mocked_file:
+            config = load_config("test_config")
+        assert not config
+
+        # Test invalid key in the YAML
+        test_data = "---\n  bad_value:\n    bad_subvalue: test"
+        with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data) as mocked_file:
+            config = load_config("test_config")
+        assert not config
+
+        # Unsupress stdout
+        sys.stdout = sys.__stdout__
+
+        # Test valid YAML
+        test_data = '---\n  jtr_config:\n    path: "test_path"'
+        with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data) as mocked_file:
+            config = load_config("test_config")
+        assert config == {'jtr_config':{'path':'test_path'}}
+
+    def test_init_session_mgr(self):
+        """
+        Checks to make sure that SessionMgr can load configs
+        """
+        
+        # Suppress stdout to clean up unittest output (since there will be a lot of expected/caused failures
+        suppress_text = io.StringIO()
+        sys.stdout = suppress_text
+
+        # Check to make sure the SessionMgr throws and Exception if it has an invalid
+        # config fiile
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={}) as load_config:
+            self.assertRaises(Exception, SessionMgr, "test.yml")
+
+        # Check to make sure the SessionMgr works with a valid config (no challenge files)
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
+            sm = SessionMgr("test.yml")
+
+        # Unsupress stdout
+        sys.stdout = sys.__stdout__
+
+    def _setup_basic_hashlist(self, hl):
+        """
+        Helper Function to initialize a basic hashlist with two types
+        """
+        hl.add_type("type1", "type1", "1337", "high")
+        hl.add_type("type2", "type2", "31337", "high")
+        
+        hl.add("pw1_type1", type="type1", plaintext=None)
+        hl.add("pw2_type1", type="type1", plaintext=None)
+        hl.add("pw3_type2", type="type2", plaintext=None)
+        hl.add("pw4_type2", type="type2", plaintext=None)
+        return
+
+    def _setup_basic_targetlist(self, tl, hl):
+        """
+        Helper Function to initialize a basic targetlist with two targets
+        """
+        
+        metadata = {'user':'user1', 'city':'boston'}
+        hashes = [hl.hash_lookup["pw1_type1"], hl.hash_lookup["pw3_type2"]]
+        tl.add(metadata, hashes)
+
+        metadata = {'user':'user2', 'city':'boston'}
+        hashes = [hl.hash_lookup["pw2_type1"], hl.hash_lookup["pw4_type2"]]
+        tl.add(metadata, hashes)
+
+        return
+
+    def test_session_mgr_status_prints(self):
+        """
+        Checks some basic prints that StatusMgr does
+        """
+
+        # Load SessionMgr works with a valid config (no challenge files)
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
+            sm = SessionMgr("test.yml", load_challenge=False)
+
+        # Test out print_status()
+        self._setup_basic_hashlist(sm.hash_list)
+        print()
+        print("Testing SessionMgr print_status()")
+        sm.print_status()
+
+        sm.hash_list.add("pw1_type1", plaintext="cracked1")
+        print()
+        print("Testing SessionMgr print_status()")
+        sm.print_status()
+
+        # Test printing metadata
+        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
+
+        print()
+        print("Testing SessionMgr print_metadata_categories()")
+        sm.print_metadata_categories()
+
+        # Test printing metadata items
+        print()
+        print("Testing SessionMgr print_metadata_items()")
+        sm.print_metadata_items("city")
+    

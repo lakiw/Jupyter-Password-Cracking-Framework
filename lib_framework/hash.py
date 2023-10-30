@@ -6,109 +6,77 @@ I figure this might be easier to manage for others than
 having random dictionaries to figure out. Also this
 will allow me to swap out the underlying infrastructure if
 I later decided to add a database to store them.
+
+The hash class itself is super basic. It holds the hash,
+and the plaintext. This is to make it easier
+to support more serious password datasets that may have
+millions of entries and database storage.
+
+To put it another way, I always add more values to Hash like
+classes and I always regret doing that. Trying to learn from
+past mistakes
 """
 
 
 class Hash:
     """
-    Keeps track of target specific hashes
+    Keeps track of hashes and plaintexts
     """
 
-    def __init__(self, orig_hash, type, jtr_hash = None, hc_hash = None, submit_hash = None, source = None, username = None, metadata = {}, plaintext = None):
+    def __init__(self, hash, plaintext = None):
         """
         Inputs:
-            orig_hash: (String) The format the hash was loaded up as
+            hash: (String) The raw hash
 
             type: (String) A definition of the hash algorithm
 
-            jtr_hash: (String) The format to use for John the Ripper
-
-            hc_hash: (String) The format to use for Hashcat
-
-            submit_hash: (String) The format to submit these hases in (if this is a competition)
-
-            source: (String) The source of this hash
-
-            username: (String) The username for this hash
-
-            metadata: (Dict) Other metadata associated with this hash
-
             plaintext: (String) The plaintext value (if known)
         """
-        self.orig_hash = orig_hash
-        self.type = type
-        self.jtr_hash = jtr_hash
-        self.hc_hash = hc_hash
-        self.submit_hash = submit_hash
+        self.hash = hash
         self.plaintext = plaintext
-
-        # The hash may be shared across multiple users
-        # So create a list of targets
-        single_target = {
-            'source':source,
-            'username':username,
-            'metadata':metadata
-        }
-        self.targets = [single_target]
-    
-    def matches(self, input):
-        """
-        Sees if a hash matches this one
-
-        Will be equal if the input matches any of the hashes for this hash
-        Aka: the jtr_hash, the hc_hash, the orig_hash, or the submit_hash
-        """
-        if self.orig_hash == input:
-            return True
-        elif self.jtr_hash == input:
-            return True
-        elif self.hc_hash == input:
-            return True
-        elif self.submit_hash == input:
-            return True
-        return False
     
     def __lt__(self, obj):
         """
         Overloading comparison operators and making
         the orig_hash be the main key
         """
-        return ((self.orig_hash) < (obj.orig_hash))
+        return ((self.hash) < (obj.hash))
   
     def __gt__(self, obj):
         """
         Overloading comparison operators and making
         the orig_hash be the main key
         """
-        return ((self.orig_hash) > (obj.orig_hash))
+        return ((self.hash) > (obj.hash))
   
     def __le__(self, obj):
         """
         Overloading comparison operators and making
         the orig_hash be the main key
         """
-        return ((self.b) <= (obj.b))
+        return ((self.hash) <= (obj.hash))
   
     def __ge__(self, obj):
         """
         Overloading comparison operators and making
         the orig_hash be the main key
         """
-        return ((self.orig_hash) >= (obj.orig_hash))
+        return ((self.hash) >= (obj.hash))
   
     def __eq__(self, obj):
         """
         Overloading comparison operators and making
         the orig_hash be the main key
         """
-        return (self.orig_hash == obj.orig_hash)
+        return (self.hash == obj.hash)
   
     def __repr__(self):
         """
-        Overloading comparison operators and making
-        the orig_hash be the main key
+        Making this easier to read
         """
-        return str((self.orig_hash, self.orig_hash))
+        if self.plaintext:
+            return f"{self.hash}:{self.plaintext}"
+        return f"{self.hash}:"
     
 
 class HashList:
@@ -122,43 +90,109 @@ class HashList:
         """
 
         # Holds all the hashes
-        self.hashes = []
+        # The key is the index that other related datastructures will
+        # reference (vs. referencing the raw hashes)
+        self.hashes = {}
+
+        # Keeps track of the next index number to assign for the hashes
+        self.next_index = 0
+
+        # Key = hash, value = Index into hashes.
+        # Used for quick lookups
+        self.hash_lookup = {}
+
+        # Key = index, value = hash type
+        # Used to associate a cracking mode with a hash
+        self.type_lookup = {}
+
+        # Key = type, value = [list of hash indexes]
+        self.type_list = {}
 
         # Information about the hash types
-        self.hash_types = {}
+        self.type_info = {}
 
-    def add(self, hash):
+        # value to assign unknown hash types
+        self.unknown_type = "unknown"
+        self.add_type(self.unknown_type, jtr_mode=None, hc_mode=None, cost=None)
+
+    def add(self, hash, type=None, plaintext=None):
         """
         Adds a hash to the list.
 
-        If the hash exists already, checks to see if the metadata
-        is different to create a new target for the existing hash.
+        If the hash exists already but the existing type or the plaintext
+        is not set, and new values are passed in, update them
+
+        Inputs:
+            hash: (STR) The string representation of the hash
+
+            type: (STR) The hash algorithm used
+
+            plaintext: (STR) The cracked password
+
+        Returns:
+            new_crack: (INT) 0 if the plaintext isn't new.
+            1 if the plaintext is new
         """
+        new_crack = 0
 
-        try: 
-            index = self.hashes.index(hash)
-            for target in hash.targets:
-                if target not in self.hashes[index].targets:
-                    self.hashes[index].targets.append(target)
+        # Check type is supported and if not, add it
+        if type and type not in self.type_info:
+            print(f"Warning, adding a hash type that hasn't been formally entered yet. Type: {type}")
+            self.add_type(type, jtr_mode=None, hc_mode=None, cost=None)
+        elif not type:
+            type = self.unknown_type
 
-        except ValueError:
-            # Hash was not found, insert it
-            self.hashes.append(hash)
+        # Check if the hash has been added already.
+        if hash in self.hash_lookup:
+            index = self.hash_lookup[hash]
 
-        # Update the statistics info
-        if hash.type not in self.hash_types:
-            print("Error: You are adding a hash but the type hasn't been registered yet")
+            # Update type if it was not set before or was incorrectly set
+            if type != self.unknown_type and self.type_lookup[index] != type:
+                prev_type = self.type_lookup[index]
+
+                self.type_list[prev_type].remove(index)
+                self.type_list[type].append(index)
+                self.type_lookup[index] = type
+
+                # Update counts for the types
+                self.type_info[prev_type]['total'] -= 1
+                self.type_info[type]['total'] += 1
+                if self.hashes[index].plaintext:
+                    self.type_info[prev_type]['cracked'] -= 1
+                    self.type_info[type]['cracked'] += 1
+            else:
+                type = self.type_lookup[index]
+
+            # Update the plaintext. Aka if you are loading a pot and have
+            # now cracked a password
+            if not self.hashes[index].plaintext and plaintext:
+                self.hashes[index].plaintext = plaintext
+                
+                # Update the count info
+                self.type_info[type]['cracked'] += 1
+                new_crack = 1
         else:
-            self.hash_types[hash.type]['total'] += 1
-            if hash.plaintext:
-                self.hash_types[hash.type]['cracked'] += 1
+            # Add the hash
+            self.hash_lookup[hash] = self.next_index
+            self.hashes[self.next_index] = Hash(hash, plaintext)
+            self.type_lookup[self.next_index] = type
+            self.type_list[type].append(self.next_index)
+            self.next_index += 1
+
+            # Update the statistics info
+            self.type_info[type]['total'] += 1
+            if plaintext:
+                self.type_info[type]['cracked'] += 1
+                new_crack = 1
+                
+        return new_crack
 
     def add_type(self, type, jtr_mode, hc_mode, cost):
         """
         Adds a hash type/algorithm to the list.
         """
-        if type not in self.hash_types:
-            self.hash_types[type] = {
+        if type not in self.type_info:
+            self.type_info[type] = {
                 'jtr_mode':jtr_mode,
                 'hc_mode':hc_mode,
                 'cost':cost,
@@ -166,13 +200,25 @@ class HashList:
                 'cracked':0,
                 'score':0
             }
+            self.type_list[type] = []
+
+        # Update info if not set
+        else:
+            if not self.type_info[type]['jtr_mode']:
+                self.type_info[type]['jtr_mode'] = jtr_mode
+            if not self.type_info[type]['hc_mode']:
+                self.type_info[type]['hc_mode'] = hc_mode
+            if not self.type_info[type]['cost']:
+                self.type_info[type]['cost'] = cost
 
     def init_scores(self, score_info):
         """
         Initializes score info for the hash types
         """
         for type, value in score_info.items():
-            if type not in self.hash_types:
+            if type not in self.type_info:
                 print(f"INFO: No hashes of type: {type} found in current challenge files. Each hash is worth: {value}")
+                print(f"Adding the type to the hash list datastructures, but jtr mode and hc mode still need to be added to use some functionality")
+                self.add_type(type, jtr_mode=None, hc_mode=None, cost=None)
             else:
-                self.hash_types[type]['score'] = value
+                self.type_info[type]['score'] = value
