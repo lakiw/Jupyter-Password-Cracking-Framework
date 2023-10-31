@@ -76,7 +76,7 @@ class PWCrackerMgr:
             return False
         return True
 
-    def load_potfile(self, filename, hash_list):
+    def load_potfile(self, filename, hash_list, update_only=True):
         """
         Loads in newly cracked hashes into hash_list
 
@@ -84,6 +84,11 @@ class PWCrackerMgr:
             filename: (String) The potfile to load
 
             hash_list: (HashList) The list of hashes to update
+
+            update_only: (Bool) If true, will skip loading new hashes if they
+            are not already in hash_list. This is to help if you have the results
+            of another password cracking session in your potfile and don't want to mess
+            up your analysis of your current session.
 
         Returns:
             new_cracks: (Int) The number of newly cracked passwords
@@ -106,9 +111,16 @@ class PWCrackerMgr:
                     # formatting
                     hash = self.normalize_hash(hash)
                     
-                    # Add the hash
-                    # If the hash has already been added/cracked nothing changes
-                    new_cracks += hash_list.add(hash,plaintext=plain)
+                    # Remove newlines from the plaintext
+                    plain = plain.rstrip('\r\n')
+
+                    if update_only:
+                        # Add cracks/plaintext to the hash
+                        new_cracks += hash_list.update(hash,plaintext=plain)
+                    else:
+                        # Add the hash
+                        # If the hash has already been added/cracked nothing changes
+                        new_cracks += hash_list.add(hash,plaintext=plain)
 
         except Exception as msg:
             print(f"Exception when trying to parse the pot file: {msg}")
@@ -147,6 +159,9 @@ class PWCrackerMgr:
                 for line in lines:
                     hash, divider, plain = line.partition(":")
 
+                    # Remove newlines from the plaintext
+                    plain = plain.rstrip('\r\n')
+
                     # Need to do things like strip out password cracker specific
                     # storage techniques for hashes
                     standard_hash = self.normalize_hash(hash)
@@ -169,7 +184,7 @@ class PWCrackerMgr:
                         formatted_hash = self.format_hash(cur_hash.hash, hash_list.type_lookup[index])
                         if formatted_hash:
                             new_cracks += 1
-                            potfile.write(f"{formatted_hash}:{cur_hash.plaintext}")
+                            potfile.write(f"{formatted_hash}:{cur_hash.plaintext}\n")
                     # Quick sanity check to make sure the plains match
                     # Hopefully this can help catch data corruption if it is happening
                     elif cur_hash.plaintext:

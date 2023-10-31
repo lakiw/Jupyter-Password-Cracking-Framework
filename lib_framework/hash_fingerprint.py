@@ -59,12 +59,9 @@ def hash_fingerprint(raw_hash, length_helper={}):
         hash_info['cost'] = "high"
 
     # LDAP SSHA512 (there are other salting modes)
-    # I don't know if JtR supports this
-    # Need to capitalize the ssha512 for HC
     elif raw_hash.startswith("{ssha512}"):
         hash_info['jtr_mode'] = None
         hash_info['hc_mode'] = "1711"
-        hash_info['hc_hash'] = raw_hash.replace("{ssha512}","{SSHA512}")
         hash_info['type'] = "ssha512"
         hash_info['cost'] = "medium"
 

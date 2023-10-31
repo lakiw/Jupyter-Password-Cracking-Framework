@@ -65,25 +65,29 @@ class SessionMgr:
         if "score_info" in self.config:
             self.hash_list.init_scores(self.config['score_info'])
 
-    def load_main_pots(self, verbose=True):
+    def load_main_pots(self, verbose=True, update_only=True):
         """
         Responsible for going through the main JtR and Hashcat pots and updating cracked passwords
         
         Inputs:
             verbose: (Bool) If true, will print out more statistics about the
             new hashes that were loaded
+
+            update_only: (Bool) If true, will not load any hashes that are not already in TargetList.
+            This is to keep results from other cracking sessions from muddying the current cracking session
+            analysis being done.
         """
         if self.jtr:
-            new_cracks = self.jtr.load_potfile(self.jtr.main_pot_file, self.hash_list) 
+            new_cracks = self.jtr.load_potfile(self.jtr.main_pot_file, self.hash_list, update_only=update_only) 
             if new_cracks == -1:
                 print(f"Error loading hashes from the main John the Ripper pot file {self.jtr.main_pot_file}")
             elif verbose:
                 print(f"Number of new JtR cracked passwords: {new_cracks}")
 
         if self.hc:
-            new_cracks = self.hc.load_potfile(self.hc.main_pot_file, self.hash_list) 
+            new_cracks = self.hc.load_potfile(self.hc.main_pot_file, self.hash_list, update_only=update_only) 
             if new_cracks == -1:
-                print(f"Error loading hashes from the main Hashcat pot file {self.jtr.main_pot_file}")
+                print(f"Error loading hashes from the main Hashcat pot file {self.hc.main_pot_file}")
             elif verbose:
                 print(f"Number of new HC cracked passwords: {new_cracks}")
 
@@ -98,16 +102,16 @@ class SessionMgr:
             new hashes that were added to each pot file
         """
         if self.jtr:
-            new_cracks = self.jtr.update_pot(self.jtr.main_pot_file, self.hash_list) 
+            new_cracks = self.jtr.update_potfile(self.jtr.main_pot_file, self.hash_list) 
             if new_cracks == -1:
                 print(f"Error updating hashes in the main John the Ripper pot file {self.jtr.main_pot_file}")
             elif verbose:
                 print(f"Number of new plains added to the JtR pot file: {new_cracks}")
 
         if self.hc:
-            new_cracks = self.hc.update_pot(self.hc.main_pot_file, self.hash_list) 
+            new_cracks = self.hc.update_potfile(self.hc.main_pot_file, self.hash_list) 
             if new_cracks == -1:
-                print(f"Error updating hashes in the main Hashcat pot file {self.jtr.main_pot_file}")
+                print(f"Error updating hashes in the main Hashcat pot file {self.hc.main_pot_file}")
             elif verbose:
                 print(f"Number of new plains added to the Hashcat pot file: {new_cracks}") 
 
@@ -146,22 +150,54 @@ class SessionMgr:
             print(f"Error: The field {meta_field} was not in the target list metadata. No data to print out")
             return
 
-        print(f"{meta_field:<{20}}:Number of Hashes :Cracked")
+        print(f"{meta_field:<{25}}:Number of Hashes :Cracked")
         # Loop through the instances of the metadata key
         for meta_value in self.target_list.meta_lookup[meta_field].keys():
             stats = self.target_list.get_stats_metadata(meta_field, meta_value, self.hash_list)
-            print(f"{meta_value:<{20}}:{stats['num_hashes']:<17}:{stats['num_cracked']}")
+            print(f"{meta_value:<{25}}:{stats['num_hashes']:<17}:{stats['num_cracked']}")
 
+    def print_single_plaintext_by_hash_index(self, hash_index, meta_fields=[], col_width = []):
+        """
+        Prints a single plaintext for a hash + associated metadata fields
+
+        May print multiple targets for the same plaintext if they share hashes
+
+        Inputs:
+            hash_index: (Int) An index for a hash to display the plaintext for
+
+            meta_fields: (List) A list of all the metavariable fields to print out
+            along with the cracked password
+
+            col_width: (List) How long each metavariable column should be. Needs to be a 1 to 1 mapping
+            with meta_fields. Just makes things easier to read
+        """
+        # A hash may not have a target associated with it. In that case, print N/A for all the categories
+        if hash_index not in self.target_list.hash_lookup:
+            for spacer_len in col_width:
+                print(f"{'<N/A>':<{spacer_len}}",end='')
+            print(f"{self.hash_list.hashes[hash_index].plaintext}")
+            return
+
+        # A single hash may be associated with multiple targets
+        for target_index in self.target_list.hash_lookup[hash_index]:
+            for list_pos, field in enumerate(meta_fields):
+                # The field may not exist so it may throw a KeyError
+                try:
+                    print(f"{self.target_list.targets[target_index].metadata[field]:<{col_width[list_pos]}}", end="")
+                except KeyError:
+                    print(f"{'<N/A>':<{col_width[list_pos]}}",end='')
+            print(f"{self.hash_list.hashes[hash_index].plaintext}")
+        
     def print_all_plaintext(self, sort_field=None, meta_fields=[], col_width = []):
         """
         Prints all the cracked passwords for manual evaluation
         
         WARNING: If you've cracked a lot of passwords (which is a good thing!) this
-        can take up a lot of screen realestate.
+        can take up a lot of screen real estate.
 
         Inputs:
             sort_field: (String) The metavalue field to sort the cracked plaintext
-            values by
+            values by. If None, it will sort by hash type instead
 
             meta_fields: (List) A list of all the metavariable fields to print out
             along with the cracked passwords
@@ -169,6 +205,69 @@ class SessionMgr:
             col_width: (List) How long each metavariable column should be. Needs to be a 1 to 1 mapping
             with meta_fields. Just makes things easier to read
         """
+
+        # First do some quick sanity checks to make sure the metadata fields exists
+        if sort_field and sort_field not in self.target_list.meta_lookup:
+            print(f"Error: The sort_field {sort_field} was not in the target list metadata. Canceling printing hashes")
+            return
+
+        for field in meta_fields:
+            if field not in self.target_list.meta_lookup:
+                print(f"Error: The meta_field {field} was not in the target list metadata. Canceling printing hashes")
+                return
+
+        # Default width of metadata fields if they were not specified
+        default_width = 25
+
+        # Fill out the col_width with the default width if they are not specified
+        while len(col_width) < len(meta_fields):
+            col_width.append(default_width)
+
+        # Sort by hash type
+        if not sort_field:
+            for type, hash_index_list in self.hash_list.type_list.items():
+                # Used to say if any hashes were cracked for the type or not
+                cracks_exist = False
+                
+                # No hashes
+                if not hash_index_list:
+                    continue
+
+                # Print the header
+                print(f"HASH TYPE: {type} ----------------------------------------------------------")
+                for list_pos, field in enumerate(meta_fields):
+                    print(f"{field:<{col_width[list_pos]}}", end="") 
+                print("Plaintext")
+                
+                # Print the actual values
+                for hash_index in hash_index_list:
+                    if self.hash_list.hashes[hash_index].plaintext:
+                        cracks_exist = True
+                        self.print_single_plaintext_by_hash_index(hash_index, meta_fields, col_width)
+                
+                if not cracks_exist:
+                    print(f"<No Cracked Hashes Exist For This Category>")
+
+        # Sort by metadata field
+        else:
+            for sort_value in self.target_list.meta_lookup[sort_field]:
+                # Used to say if any hashes were cracked for the type or not
+                cracks_exist = False
+                
+                # Print the header
+                print(f"Sort Field: {sort_field}: Value: {sort_value} ----------------------------------------------------------")
+                for list_pos, field in enumerate(meta_fields):
+                    print(f"{field:<{col_width[list_pos]}}", end="") 
+                print("Plaintext")
+
+                for target_index in self.target_list.meta_lookup[sort_field][sort_value]:
+                    for hash_index in self.target_list.targets[target_index].hashes:
+                        if self.hash_list.hashes[hash_index].plaintext:
+                            cracks_exist = True
+                            self.print_single_plaintext_by_hash_index(hash_index, meta_fields, col_width)
+
+                if not cracks_exist:
+                    print(f"<No Cracked Hashes Exist For This Category>")
         return
 
     def pie_graph_metadata(self, meta_field, has_plaintext=False, top_x=None, plot_size=5):
@@ -180,16 +279,24 @@ class SessionMgr:
 
             has_plaintext: (Bool) If true, only include hashes that have been cracked
         """
+        if meta_field not in self.target_list.meta_lookup:
+            print(f"Error: The meta_field {meta_field} was not in the target list metadata. Canceling making the pie chart")
+            return
+
         data = {}
         # Create the statistics
-        for hash in self.hash_list.hashes:
-            if not has_plaintext or hash.plaintext:
-                for target in hash.targets:
-                    if meta_field in target['metadata']:
-                        if target['metadata'][meta_field] in data:
-                            data[target['metadata'][meta_field]] += 1
-                        else:
-                            data[target['metadata'][meta_field]] = 1
+        for meta_value in self.target_list.meta_lookup[meta_field].keys():
+            stats = self.target_list.get_stats_metadata(meta_field, meta_value, self.hash_list)
+            if has_plaintext:
+                # Don't create categories for targets that don't have cracks
+                if stats['num_cracked'] == 0:
+                    continue
+                data[meta_value] = stats['num_cracked']
+            else:
+                # Don't create categories for targets that don't have hashes
+                if stats['num_hashes'] == 0:
+                    continue
+                data[meta_value] = stats['num_hashes']
 
         # Sort the results
         sorted_data = sorted(data, key=data.get, reverse=True)

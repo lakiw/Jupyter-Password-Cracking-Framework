@@ -133,6 +133,49 @@ class HashList:
             new_crack: (INT) 0 if the plaintext isn't new.
             1 if the plaintext is new
         """
+        # Basically just a frontend to the private _add_update function
+        return self._add_update(hash, type=type, plaintext=plaintext, update_only=False)
+
+    def update(self, hash, type=None, plaintext=None):
+        """
+        Updates a hash. Will not add it if it is new.
+
+        Inputs:
+            hash: (STR) The string representation of the hash
+
+            type: (STR) The hash algorithm used
+
+            plaintext: (STR) The cracked password
+
+        Returns:
+            new_crack: (INT) 0 if the plaintext isn't new.
+            1 if the plaintext is new
+        """
+        # Basically just a frontend to the private _add_update function
+        return self._add_update(hash, type=type, plaintext=plaintext, update_only=True)
+
+    def _add_update(self, hash, type=None, plaintext=None, update_only=False):
+        """
+        Adds a hash to the list if update_only is False. Otherwise will only update an
+        existing hash. Making this a private function since it's basically the same
+        code for adding/updating.
+
+        In all cases, if the hash exists already but the existing type or the plaintext
+        is not set, and new values are passed in, update them
+
+        Inputs:
+            hash: (STR) The string representation of the hash
+
+            type: (STR) The hash algorithm used
+
+            plaintext: (STR) The cracked password
+
+            update_only: (BOOL) If true will not add a new hash to HashList
+
+        Returns:
+            new_crack: (INT) 0 if the plaintext isn't new.
+            1 if the plaintext is new
+        """
         new_crack = 0
 
         # Check type is supported and if not, add it
@@ -171,7 +214,7 @@ class HashList:
                 # Update the count info
                 self.type_info[type]['cracked'] += 1
                 new_crack = 1
-        else:
+        elif not update_only:
             # Add the hash
             self.hash_lookup[hash] = self.next_index
             self.hashes[self.next_index] = Hash(hash, plaintext)

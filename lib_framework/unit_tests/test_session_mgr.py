@@ -133,4 +133,28 @@ class Test_SessionMgr(unittest.TestCase):
         print()
         print("Testing SessionMgr print_metadata_items()")
         sm.print_metadata_items("city")
+
+        # Test printing all plaintexts (by hash type)
+        print()
+        print("Testing print_all_plaintext(). Sorted by hash type")
+        sm.print_all_plaintext(meta_fields=['user','city'])
+
+        # Test printing all plaintexts (sorted by city)
+        print()
+        print("Testing print_all_plaintext(). Sorted by city")
+        sm.print_all_plaintext(sort_field='city', meta_fields=['user'])
     
+
+    def test_session_mgr_pie_graph_metadata(self):
+        """
+        Checks the pie graph of the metadata functionality
+        """
+        # Load SessionMgr works with a valid config (no challenge files)
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
+            sm = SessionMgr("test.yml", load_challenge=False)
+
+        # Set up a couple of basic hashes
+        self._setup_basic_hashlist(sm.hash_list)
+        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
+        sm.pie_graph_metadata("city", has_plaintext=False, top_x=None)
+

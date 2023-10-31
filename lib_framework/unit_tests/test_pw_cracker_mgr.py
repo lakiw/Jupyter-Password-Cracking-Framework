@@ -88,7 +88,11 @@ class Test_PWCrackerMgr(unittest.TestCase):
         hl = self._helper_create_hashlist()
         test_data = "new_pw:cracked"
         with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data):
-            assert cracker_mgr.load_potfile("test.pot", hl) == 1
+            # First make sure the new hash isn't added if update_only is True
+            assert cracker_mgr.load_potfile("test.pot", hl, update_only=True) == 0
+
+            # Now make sure it gets added if update_only is False
+            assert cracker_mgr.load_potfile("test.pot", hl, update_only=False) == 1
             assert hl.hashes[hl.hash_lookup['new_pw']].plaintext == 'cracked'
 
     def test_update_potfile(self):
