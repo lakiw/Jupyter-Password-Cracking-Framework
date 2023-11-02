@@ -9,6 +9,9 @@ line feature. So I'm going with inheritance even
 though I may never get around to using that functionality
 """
 
+# Local imports
+from .hash_fingerprint import hash_fingerprint
+
 class PWCrackerMgr:
     """
     Base functionality for keeping track of 
@@ -120,7 +123,19 @@ class PWCrackerMgr:
                     else:
                         # Add the hash
                         # If the hash has already been added/cracked nothing changes
-                        new_cracks += hash_list.add(hash,plaintext=plain)
+
+                        # Identify the hash type in case it needs to be added
+                        # Not using length helper since there's too big a chance it might
+                        # misidentify hashes from other cracking sessions. Aka you might
+                        # be adding an MD4 hash
+                        #
+                        # In the future, might add JtR dynamic fields to hash_fingerprint in
+                        # which case it might make sense to do this on the raw hash vs. the normalized one
+                        hash_info = hash_fingerprint(hash)
+                        if hash_info['type']: 
+                            new_cracks += hash_list.add(hash,plaintext=plain, type=hash_info['type'])
+                        else:
+                            new_cracks += hash_list.add(hash,plaintext=plain)
 
         except Exception as msg:
             print(f"Exception when trying to parse the pot file: {msg}")
@@ -178,16 +193,19 @@ class PWCrackerMgr:
             # If so, append them to the pot file.
             with open(filename, mode='a') as potfile:
                 for index, cur_hash in hash_list.hashes.items():
-                    if cur_hash.plaintext and cur_hash.hash not in pot_lookup:
+
+                    # Don't add hashes of unknown type to the pot files since that might add junk
+                    # that the crackers can't handle.
+                    if cur_hash.plaintext and cur_hash.hash not in pot_lookup and hash_list.type_lookup[index] != hash_list.unknown_type:
                         # Need to add a sanity check if a particular hash isn't supported by the
-                        # cracking program
+                        # cracking program)
                         formatted_hash = self.format_hash(cur_hash.hash, hash_list.type_lookup[index])
                         if formatted_hash:
                             new_cracks += 1
                             potfile.write(f"{formatted_hash}:{cur_hash.plaintext}\n")
                     # Quick sanity check to make sure the plains match
                     # Hopefully this can help catch data corruption if it is happening
-                    elif cur_hash.plaintext:
+                    elif cur_hash.hash in pot_lookup and cur_hash.plaintext:
                         if pot_lookup[cur_hash.hash] != cur_hash.plaintext:
                             print(f"Warning, the hash {cur_hash.hash} in the potfile has a different plaintext then in the cracked list")
                             print(f"Potfile_Plaintext:{pot_lookup[cur_hash.hash]}")

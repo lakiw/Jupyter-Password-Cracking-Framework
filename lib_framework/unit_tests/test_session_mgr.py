@@ -134,6 +134,16 @@ class Test_SessionMgr(unittest.TestCase):
         print("Testing SessionMgr print_metadata_items()")
         sm.print_metadata_items("city")
 
+        # Test printing the score
+        print()
+        print("Testing SessionMgr print_score() when score is not defined")
+        sm.print_score()
+
+        print()
+        print("Testing SessionMgr print_score()")
+        sm.hash_list.init_scores({'type1':10, 'type2':20})
+        sm.print_score()
+
         # Test printing all plaintexts (by hash type)
         print()
         print("Testing print_all_plaintext(). Sorted by hash type")

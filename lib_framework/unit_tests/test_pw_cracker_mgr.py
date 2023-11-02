@@ -113,7 +113,7 @@ class Test_PWCrackerMgr(unittest.TestCase):
         test_data = ""
         with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data) as mocked_file:
             assert cracker_mgr.update_potfile("test.pot", hl) == 1
-            mocked_file().write.assert_called_once_with("abc123:cracked")
+            mocked_file().write.assert_called_once_with("abc123:cracked\n")
 
         # Test updating a potfile with existing cracked hashes but with one new cracked passwords
         hl = self._helper_create_hashlist()
@@ -121,7 +121,7 @@ class Test_PWCrackerMgr(unittest.TestCase):
         test_data = "old_hash:123"
         with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data) as mocked_file:
             assert cracker_mgr.update_potfile("test.pot", hl) == 1
-            mocked_file().write.assert_called_once_with("abc123:cracked")
+            mocked_file().write.assert_called_once_with("abc123:cracked\n")
 
         # Test updating a potfile with existing cracked hashes and those hashes are in the main cracked passwords
         hl = self._helper_create_hashlist()

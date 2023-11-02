@@ -126,6 +126,62 @@ class SessionMgr:
             if info['total'] != 0:
                 print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
 
+    def print_score(self):
+        """
+        Prints the current score as defined by the config file
+        Aka it looks through all the cracked hashes and assigns them points
+        based on how much they were defined to be worth.
+
+        This is used for password cracking competitions.
+
+        If a score wasn't defined in the config file it prints a warning message stating that
+        """
+
+        # First perform a quick pass to see if any scores were defined
+        score_defined = False
+        for type, values in self.hash_list.type_info.items():
+            if values['score']:
+                score_defined = True
+                break
+        
+        if not score_defined:
+            print("No scores defined for the hash types. You can define this in the config file")
+            print("For example:")
+            print("  score_info:")
+            print("    bcrypt: 16777215")
+            return
+
+        # Figure out the score and print out the current value for each hash type
+        total_score = 0
+        # Total possible points if all hashes were cracked
+        max_total_score = 0
+        print(f"{'Hash Type:':<15}{'Value Per Crack:':<20}{'Points Earned:':<20}{'Total Possible Points:'}")
+        for type, type_hl in self.hash_list.type_list.items():
+            # If a score wasn't defined but there were hashes
+            if not self.hash_list.type_info[type]['score'] and type_hl:
+                print(f"{type:<15}{'No Score Defined':<20}{0:<20}{0}")
+            
+            # Else if hashes exist
+            elif type_hl:
+                # Score earned for this hash type
+                hash_score = 0
+                # Total possible points if all hashes of this type were cracked
+                max_hash_score = 0
+                for hash_index in type_hl:
+                    max_hash_score += self.hash_list.type_info[type]['score']
+                    if self.hash_list.hashes[hash_index].plaintext:
+                        hash_score += self.hash_list.type_info[type]['score']
+                print(f"{type:<15}{self.hash_list.type_info[type]['score']:<20}{hash_score:<20}{max_hash_score}")
+
+                total_score += hash_score
+                max_total_score += max_hash_score
+
+        print()
+        print(f"Total Score: {total_score}")
+        print(f"Maximum Possible Score: {max_total_score}")
+                
+
+    
     def print_metadata_categories(self):
         """
         Prints the metadata categories available to search/graph on

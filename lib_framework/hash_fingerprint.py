@@ -29,7 +29,7 @@ def hash_fingerprint(raw_hash, length_helper={}):
         'jtr_hash':raw_hash,
         'hc_mode':None,
         'hc_hash': raw_hash,
-        'type':"unknown",
+        'type':None,
         'cost':None
     }
 

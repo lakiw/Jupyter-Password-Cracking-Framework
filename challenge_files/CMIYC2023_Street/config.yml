@@ -1,0 +1,22 @@
+---
+  jtr_config:
+    main_pot_file: "./challenge_files/CMIYC2023_Street/john.pot"
+  
+  hashcat_config:
+    main_pot_file: "./challenge_files/CMIYC2023_Street/hashcat.potfile"
+  
+  challenge_files:
+    street_team:
+      file: "./challenge_files/CMIYC2023_Street/small_challenge.yaml"
+      format: "cmiyc_2023"
+
+  score_info:
+    bcrypt: 16777215
+    sha256crypt: 720000
+    sha1crypt: 430000
+    md5crypt: 65000
+    ssha512: 1400
+    ssha: 190
+    raw-sha256: 8
+    raw-sha1: 3
+    raw-md5: 1
