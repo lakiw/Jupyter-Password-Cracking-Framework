@@ -3,7 +3,7 @@ jupyterlab
 ipynb
 
 # Data format modules
-yaml
+pyyaml
 
 # Analysis/Graphing modules
 matplotlib
