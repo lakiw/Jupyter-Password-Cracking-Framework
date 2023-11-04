@@ -38,13 +38,15 @@ class SessionMgr:
             raise Exception
         
         # Initialize the password cracking managers
-        self.jtr = None
         if "jtr_config" in self.config:
             self.jtr = JTRMgr(self.config['jtr_config'])
+        else:
+            self.jtr = JTRMgr({})
         
-        self.hc = None
         if "hashcat_config" in self.config:
             self.hc = HashcatMgr(self.config['hashcat_config'])
+        else:
+            self.hc = HashcatMgr({})
 
         # Load the hashes
         self.hash_list = HashList()
@@ -389,3 +391,106 @@ class SessionMgr:
 
         return
 
+    def create_left_list(self, is_jtr=True, file_name=None, hash_type=None, filter=None):
+        """
+        Creates a hash file of uncracked hashes
+
+        Inputs:
+            is_jtr: (Bool) If True, this should format the left list for John the Ripper
+
+            file_name: (String) If it is not None, write the left list to this filename. If
+            it is None, write the results to stdout instead.
+
+            hash_type: (String) If not none, only write hashes of this type to the left list.
+            If None, then it will write all uncracked hashes to this list regardless of type
+
+            filter: (Dict) All key/value pairs must match metadata for uncracked hashes to
+            be written to the left list. If None the filter is ignored. If a value is None, then
+            it will write all hashes that have a metadata with the particular key set.
+        """
+
+        # Sanity check on filter values to make sure they are correct
+        if hash_type and hash_type not in self.hash_list.type_info:
+            print(f"Error: hash_type of {hash_type} is not a type that has been loaded into this framework")
+            return
+        
+        if filter:
+            for key, value in filter.items():
+                if key not in self.target_list.meta_lookup:
+                    print(f"Error: filter/metadata with a key of of {key} has not been entered into the target/metadata datastructures")
+                    return
+                if value and value not in self.target_list.meta_lookup[key]:
+                    print(f"Error: filter/metadata with a key of of {key} and value of {value} has not been entered into the target/metadata datastructures")
+                    return
+        
+        # If not printing to stdout, open the file 
+        if file_name:
+            try:
+                file = open(file_name, mode='w')
+            except Exception as msg:
+                print(f"Exception writing to {file_name}: {msg}")
+                return
+        else: 
+            file = None
+
+        # There are multiple layers of optimization that can be made here based on the filters
+        # and the hash types so that only a small subset of hashes need to be searched/checked
+        # to generate the left list. I'm concerned about the code complexity though so for
+        # this current implimentation I'm just going to loop through all hashes and then
+        # apply filters to them to see if they should be included in the left list
+        for hash_id, hash in self.hash_list.hashes.items():
+            # First filter, if it has a plaintext, don't include it in the left list
+            if hash.plaintext:
+                continue
+
+            # Next filter based on hash type if it was specified
+            if hash_type and self.hash_list.type_lookup[hash_id] != hash_type:
+                continue
+
+            # Next filter based on filters/metadata
+            if filter:
+                # Assume it matches and break when it doesn't
+                match_filter = True
+                
+                # There can be multiple filters, so go through each one
+                for filter_key, filter_value in filter.items():
+
+                    # Need to find an instance where this hash maches something matching this filter
+                    found = False
+
+                    # Go through all the targets that match this filter
+                    for cur_value, target_ids in self.target_list.meta_lookup[filter_key].items():
+                        # If a value has been specified, skip not filter_value entries
+                        if filter_value:
+                            if cur_value != filter_value:
+                                continue
+                    
+                        for single_target in target_ids:
+                            if hash_id in self.target_list.targets[single_target].hashes:
+                                found = True
+                                break
+
+                    if not found:
+                        match_filter = False
+                        break
+                
+                if not match_filter:
+                    continue
+
+            # Add this hash to the left list
+            # Format the hash for the target password cracking program
+            if is_jtr:
+                out_hash = self.jtr.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
+            else:
+                out_hash = self.hc.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
+            
+            if file:
+                file.write(f"{out_hash}\n")
+            else:
+                print(f"{out_hash}")
+
+        # Close the file
+        if file:
+            file.close()
+
+        return

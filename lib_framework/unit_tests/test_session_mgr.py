@@ -102,6 +102,61 @@ class Test_SessionMgr(unittest.TestCase):
 
         return
 
+    def test_session_mgr_create_left_list(self):
+        """
+        Checks how session_mgr creates left lists
+        """
+
+        # Load SessionMgr works with a valid config (no challenge files)
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
+            sm = SessionMgr("test.yml", load_challenge=False)
+
+        # Setup hashlist with no cracks
+        self._setup_basic_hashlist(sm.hash_list)
+
+        # Test create left list with no filter
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_left_list(is_jtr=False, file_name="test.list")
+            mocked_file().write.assert_any_call("pw1_type1\n")
+            mocked_file().write.assert_any_call("pw2_type1\n")
+            mocked_file().write.assert_any_call("pw3_type2\n")
+            mocked_file().write.assert_any_call("pw4_type2\n")
+            assert mocked_file().write.call_count == 4
+
+        # Test to make sure hashes with plaintext are excluded
+        sm.hash_list.add("pw1_type1", plaintext="cracked1")
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_left_list(is_jtr=False, file_name="test.list")
+            mocked_file().write.assert_any_call("pw2_type1\n")
+            mocked_file().write.assert_any_call("pw3_type2\n")
+            mocked_file().write.assert_any_call("pw4_type2\n")
+            assert mocked_file().write.call_count == 3
+
+        # Test to make sure hash_type is checked properly
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_left_list(is_jtr=False, file_name="test.list", hash_type="type2")
+            mocked_file().write.assert_any_call("pw3_type2\n")
+            mocked_file().write.assert_any_call("pw4_type2\n")
+            assert mocked_file().write.call_count == 2
+
+        # Test to make sure filter doesn't accidently exclude anything
+        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_left_list(is_jtr=False, file_name="test.list", filter={"city":"boston"})
+            mocked_file().write.assert_any_call("pw2_type1\n")
+            mocked_file().write.assert_any_call("pw3_type2\n")
+            mocked_file().write.assert_any_call("pw4_type2\n")
+            assert mocked_file().write.call_count == 3
+
+        # Test to make sure filter does exclude things
+        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_left_list(is_jtr=False, file_name="test.list", filter={"user":"user2"})
+            mocked_file().write.assert_any_call("pw2_type1\n")
+            mocked_file().write.assert_any_call("pw4_type2\n")
+            assert mocked_file().write.call_count == 2
+
+
     def test_session_mgr_status_prints(self):
         """
         Checks some basic prints that StatusMgr does
