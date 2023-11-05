@@ -104,5 +104,5 @@ def _load_cmiyc_2023(details, hash_list, target_list):
                     metadata[key] = value
 
             target_list.add(metadata=metadata, hashes=[hash_index])
-
+    print("Done loading the challenge yaml file.")
     return True

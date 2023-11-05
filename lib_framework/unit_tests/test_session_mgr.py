@@ -149,13 +149,64 @@ class Test_SessionMgr(unittest.TestCase):
             assert mocked_file().write.call_count == 3
 
         # Test to make sure filter does exclude things
-        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
         with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
             sm.create_left_list(is_jtr=False, file_name="test.list", filter={"user":"user2"})
             mocked_file().write.assert_any_call("pw2_type1\n")
             mocked_file().write.assert_any_call("pw4_type2\n")
             assert mocked_file().write.call_count == 2
 
+    def test_session_mgr_create_cracked_list(self):
+        """
+        Checks how session_mgr creates cracked lists
+        """
+
+        # Load SessionMgr works with a valid config (no challenge files)
+        with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
+            sm = SessionMgr("test.yml", load_challenge=False)
+
+        # Setup hashlist with no cracks
+        self._setup_basic_hashlist(sm.hash_list)
+
+        # Test create cracked list with no filter (no passwords should be outputted)
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_cracked_list(file_name="test.list")
+            assert mocked_file().write.call_count == 0
+
+        # Now make a cracked password and see that it gets outputted
+        sm.hash_list.add("pw1_type1", plaintext="cracked1")
+        print("Trying it here")
+        sm.create_cracked_list(file_name="test.list")
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_cracked_list(file_name="test.list")
+            mocked_file().write.assert_any_call("cracked1\n")
+            assert mocked_file().write.call_count == 1
+
+        # Test to make sure hash_type is checked properly
+        sm.hash_list.add("pw2_type1", plaintext="cracked2")
+        sm.hash_list.add("pw3_type2", plaintext="cracked3")
+        sm.hash_list.add("pw4_type2", plaintext="cracked4")
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_cracked_list(file_name="test.list", hash_type="type2")
+            mocked_file().write.assert_any_call("cracked3\n")
+            mocked_file().write.assert_any_call("cracked4\n")
+            assert mocked_file().write.call_count == 2
+
+        # Test to make sure filter doesn't accidently exclude anything
+        self._setup_basic_targetlist(sm.target_list, sm.hash_list)
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_cracked_list(file_name="test.list", filter={"city":"boston"})
+            mocked_file().write.assert_any_call("cracked1\n")
+            mocked_file().write.assert_any_call("cracked2\n")
+            mocked_file().write.assert_any_call("cracked3\n")
+            mocked_file().write.assert_any_call("cracked4\n")
+            assert mocked_file().write.call_count == 4
+
+        # Test to make sure filter does exclude things
+        with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
+            sm.create_cracked_list(file_name="test.list", filter={"user":"user2"})
+            mocked_file().write.assert_any_call("cracked2\n")
+            mocked_file().write.assert_any_call("cracked4\n")
+            assert mocked_file().write.call_count == 2
 
     def test_session_mgr_status_prints(self):
         """
