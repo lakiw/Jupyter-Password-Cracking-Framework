@@ -407,7 +407,12 @@ class SessionMgr:
             filter: (Dict) All key/value pairs must match metadata for uncracked hashes to
             be written to the left list. If None the filter is ignored. If a value is None, then
             it will write all hashes that have a metadata with the particular key set.
+
+        Returns:
+            wordlist: (List) List of all the hashes written to disk or printed out
         """
+        # Return Value
+        wordlist = []
 
         # Sanity check on filter values to make sure they are correct
         if hash_type and hash_type not in self.hash_list.type_info:
@@ -484,6 +489,7 @@ class SessionMgr:
             else:
                 out_hash = self.hc.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
             
+            wordlist.append(out_hash)
             if file:
                 file.write(f"{out_hash}\n")
             else:
@@ -493,7 +499,7 @@ class SessionMgr:
         if file:
             file.close()
 
-        return
+        return wordlist
     
     def create_cracked_list(self, file_name=None, hash_type=None, filter=None):
         """
@@ -513,8 +519,14 @@ class SessionMgr:
             filter: (Dict) All key/value pairs must match metadata for cracked passwords to
             be written to the list. If None the filter is ignored. If a value is None, then
             it will write all passwords that have a metadata with the particular key set.
+
+        Returns:
+            wordlist: (List) List of all the words written to disk or printed out
         """
         
+        # Return Value
+        wordlist = []
+
         # Sanity check on filter values to make sure they are correct
         if hash_type and hash_type not in self.hash_list.type_info:
             print(f"Error: hash_type of {hash_type} is not a type that has been loaded into this framework")
@@ -584,6 +596,7 @@ class SessionMgr:
                     continue
 
             # Add this hash to the list
+            wordlist.append(hash.plaintext)
             if file:
                 file.write(f"{hash.plaintext}\n")
             else:
@@ -593,4 +606,4 @@ class SessionMgr:
         if file:
             file.close()
 
-        return
+        return wordlist

@@ -174,8 +174,6 @@ class Test_SessionMgr(unittest.TestCase):
 
         # Now make a cracked password and see that it gets outputted
         sm.hash_list.add("pw1_type1", plaintext="cracked1")
-        print("Trying it here")
-        sm.create_cracked_list(file_name="test.list")
         with unittest.mock.patch('builtins.open', new_callable=mock_open) as mocked_file:
             sm.create_cracked_list(file_name="test.list")
             mocked_file().write.assert_any_call("cracked1\n")
