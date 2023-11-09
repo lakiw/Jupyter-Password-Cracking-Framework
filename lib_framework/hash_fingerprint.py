@@ -60,24 +60,67 @@ def hash_fingerprint(raw_hash, length_helper={}):
 
     # LDAP SSHA512 (there are other salting modes)
     elif raw_hash.startswith("{ssha512}"):
-        hash_info['jtr_mode'] = None
+        hash_info['jtr_mode'] = "SSHA512"
         hash_info['hc_mode'] = "1711"
         hash_info['type'] = "ssha512"
         hash_info['cost'] = "medium"
 
     # LDAP SSHA1
-    # I don't know if JtR supports this
     elif raw_hash.startswith("{SSHA}"):
-        hash_info['jtr_mode'] = None
+        hash_info['jtr_mode'] = "Salted-SHA1"
         hash_info['hc_mode'] = "111"
         hash_info['type'] = "ssha"
         hash_info['cost'] = "medium"
 
+    # mysql CRAM hashes    
+    elif raw_hash.startswith("$mysqlna$"):
+        hash_info['jtr_mode'] = "Salted-SHA1"
+        hash_info['hc_mode'] = "11200"
+        hash_info['type'] = "mysqlna"
+        hash_info['cost'] = "low"
+
+    # mssql05 hashes    
+    elif raw_hash.startswith("0x0100"):
+        hash_info['jtr_mode'] = "mssql05"
+        hash_info['hc_mode'] = "132"
+        hash_info['type'] = "mssql05"
+        hash_info['cost'] = "low"
+    
+
     # Potentially raw_sha256
     elif len(raw_hash) in length_helper:
-        hash_info = _get_hash_info(length_helper[len(raw_hash)], raw_hash)
+        hash_info_lookup = _get_hash_info(length_helper[len(raw_hash)], raw_hash)
+        if hash_info_lookup:
+            hash_info = hash_info_lookup
 
     return hash_info
+
+
+def get_len_for_type(type):
+    """
+    Returns the length of common hash types
+
+    Inputs:
+        type: (String) The Hashing algorithm
+
+    Returns:
+        length: (int) The length of the hash
+        None, if not specified
+    """
+    if type.lower() == "half-md5":
+        return 16
+    elif type.lower() == "raw-md4":
+        return 32
+    elif type.lower() == "raw-md5":
+        return 32
+    elif type.lower() == "raw-sha1":
+        return 40
+    elif type.lower() == "raw-sha256":
+        return 64
+    elif type.lower() == "raw-sha384":
+        return 96
+
+    return None
 
 
 def _get_hash_info(type, raw_hash):
@@ -97,13 +140,19 @@ def _get_hash_info(type, raw_hash):
     """ 
 
     hash_info = None
-
-    if type.lower() == "raw-md5":
+    if type.lower() == "half-md5":
+        hash_info = {
+            'jtr_mode':None,
+            'jtr_hash':None,
+            'hc_mode':"5100",
+            'type':"half-md5",
+            'cost':"low"
+        }
+    elif type.lower() == "raw-md5":
         hash_info = {
             'jtr_mode':"raw-MD5",
             'jtr_hash':f"$dynamic_0${raw_hash}",
             'hc_mode':"0",
-            'hc_hash': raw_hash,
             'type':"raw-md5",
             'cost':"low"
         }
@@ -112,7 +161,6 @@ def _get_hash_info(type, raw_hash):
             'jtr_mode':"raw-SHA1",
             'jtr_hash':f"$dynamic_26${raw_hash}",
             'hc_mode':"100",
-            'hc_hash': raw_hash,
             'type':"raw-sha1",
             'cost':"low"
         }
@@ -121,8 +169,15 @@ def _get_hash_info(type, raw_hash):
             'jtr_mode':"raw-SHA256",
             'jtr_hash':f"$SHA256${raw_hash}",
             'hc_mode':"1400",
-            'hc_hash': raw_hash,
             'type':"raw-sha256",
+            'cost':"low"
+        }
+    elif type.lower() == "raw-sha384":
+        hash_info = {
+            'jtr_mode':"raw-SHA384",
+            'jtr_hash':f"$SHA384${raw_hash}",
+            'hc_mode':"10800",
+            'type':"raw-sha384",
             'cost':"low"
         }
     

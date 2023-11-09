@@ -11,6 +11,7 @@ import yaml
 
 # Local imports
 from .hash_fingerprint import hash_fingerprint
+from .hash_fingerprint import get_len_for_type
 
 
 def load_challenge_files(details, hash_list, target_list):
@@ -35,7 +36,10 @@ def load_challenge_files(details, hash_list, target_list):
     """
 
     try:
-        if details['format'] == 'cmiyc_2023':
+        # If the file is just a list of all the same hash types with no additional other data
+        if details['format'] == 'plain_hash':
+            return _load_plain_hash(details, hash_list, target_list)
+        elif details['format'] == 'cmiyc_2023':
             return _load_cmiyc_2023(details, hash_list, target_list)
         
         else:
@@ -46,6 +50,81 @@ def load_challenge_files(details, hash_list, target_list):
         print(f"Error loading the challenge file: {msg}")
         return False
     
+def _load_plain_hash(details, hash_list, target_list):
+    """
+    Loads a list of plain password hashes. All hashes are expected to be of the
+    same format. No usernames or other metadata is expected to be in this list
+
+    Inputs:
+        details: (DICT) Contains info needed to load the hash files
+
+        hash_list: (HashList) Place to store the hashes being loaded
+
+        target_list: (TargetList) Place to store the targets being loaded
+
+    Returns:
+        True: The hash file was loaded sucessfully
+
+        False: An error occured loading the hashes
+    """
+    print(f"Starting to load challenge file: {details['file']}. This may take a minute or two")
+
+    hash_type = None
+    length_helper = {}
+
+    # Used to create a target that has all of these hashes
+    target_hash_id_list = []
+
+    # Check to see if the hash type is defined, and if it needs a length helper for it
+    # Aka a lot of 128 bit hashes look the same
+    if 'type' in details:
+        hash_type = details['type']
+        hash_length = get_len_for_type(hash_type)
+        if hash_length:
+            length_helper[hash_length] = hash_type
+
+    with open(details['file']) as challenge_file:
+        lines = challenge_file.readlines()
+        for line in lines:
+            
+            # Remove trailing whitespace and newlines
+            line = line.strip()
+            
+            # Skip blank lines
+            if len(line) == 0:
+                continue
+
+            # Perform a sanity check to make sure the hash looks legit
+            hash_info = hash_fingerprint(line, length_helper)
+
+            if not hash_info['type']:
+                print(f"Warning: Unsupported Hash: {line}")
+            if hash_type and (hash_info['type'] != hash_type):
+                print(f"Warning: the hash type from autodetection identifies the hash as {hash_info['type']} when the config specified {details['type']}")
+
+            # Add the type
+            # If the type has been added before this will not make any changes
+            hash_list.add_type(
+                type=hash_info['type'],
+                jtr_mode=hash_info['jtr_mode'],
+                hc_mode=hash_info['hc_mode'],
+                cost=hash_info['cost']
+            )
+
+            # Save the hash
+            hash_list.add(line, type=hash_info['type'])
+
+            # Create a target/metadata for this list
+            hash_index = hash_list.hash_lookup[line]
+            if hash_index not in target_hash_id_list:
+                target_hash_id_list.append(hash_index)
+
+    if 'source' in details:
+        target_list.add(metadata={'source':details['source']}, hashes=target_hash_id_list)
+
+    print("Done loading the challenge file.")
+    return True
+
 
 def _load_cmiyc_2023(details, hash_list, target_list):
     """
