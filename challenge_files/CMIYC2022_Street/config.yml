@@ -1,0 +1,72 @@
+---
+# This defines where the potfiles are for this contest. This lets you load cracked hashes from them
+# as well as keep your JtR and HC potfiles synced.
+
+  jtr_config:
+    main_pot_file: "./challenge_files/CMIYC2022_Street/jtr_cmiyc2022.pot"
+  
+  hashcat_config:
+    main_pot_file: "./challenge_files/CMIYC2022_Street/hc_cmiyc2022.potfile"
+
+# This is information on where to load the challenge files. If they have additional metadata you
+# may need to write a custom function to import them, but in this case they are pure raw hash lists
+# so we can use the "plain_hash" plugin to import them.
+#
+# This plugin requires the hash type to be specified (if not it will default to "unknown"). Typically
+# I use the JtR naming format for the hash type. The "name" field is used to just list a source for the
+# hashes in the framework
+#  
+  challenge_files:
+    list14:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list14-4214-BrunnersMentalPrisoner.hashes"
+      format: "plain_hash"
+      type: "mysqlna"
+      source: "list14-BrunnersMentalPrisoner"
+    list16:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list16-FL_kdIZUGpI.txt"
+      format: "plain_hash"
+      type: "half-md5"
+      source: "list16-FL_kdIZUGpI"
+    list17:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list17.txt"
+      format: "plain_hash"
+      type: "raw-md5"
+      source: "list17"
+    list18:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list18.hash"
+      format: "plain_hash"
+      type: "raw-sha1"
+      source: "list18"
+    list19:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list19-paidanextra500000.hashes"
+      format: "plain_hash"
+      type: "raw-sha256"
+      source: "list19-paidanextra500000"
+    list20:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list20-Authoritiesappeartohaveuncoveredavastnefariousconspiracy.hashes"
+      format: "plain_hash"
+      type: "raw-sha384"
+      source: "list20-Authoritiesappearto"
+    list21:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list21.hashes"
+      format: "plain_hash"
+      type: "mssql05"
+      source: "list21"
+    list24:
+      file: "./challenge_files/CMIYC2022_Street/sample_hashes/list24.hashes"
+      format: "plain_hash"
+      type: "ssha"
+      source: "list24"
+
+# The score info is taken from the Korelogic scoreboard. This isn't necessary, but it is nice to have
+# a local count of what your score should be so you can compare it to the official score to validate that
+# you are submitting your cracks properly
+  score_info:
+    raw-sha384: 46
+    mysqlna: 17
+    raw-sha256: 13
+    mssql05: 9
+    raw-sha1: 5
+    ssha: 5
+    half-md5: 3
+    raw-md5: 1
