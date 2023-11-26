@@ -16,6 +16,9 @@ from ..session_mgr import SessionMgr
 from ..config_mgmt import load_config
 
 
+# Defining this to make it easy for me to mute printouts
+mute_output = True
+
 class Test_SessionMgr(unittest.TestCase):
     """
     Responsible for testing SessionMgr and related functionality
@@ -215,6 +218,10 @@ class Test_SessionMgr(unittest.TestCase):
         with unittest.mock.patch('lib_framework.session_mgr.load_config', return_value={'jtr_config':{'path':'test_path'}}) as load_config:
             sm = SessionMgr("test.yml", load_challenge=False)
 
+        if mute_output:
+            suppress_text = io.StringIO()
+            sys.stdout = suppress_text
+
         # Test out print_status()
         self._setup_basic_hashlist(sm.hash_list)
         print()
@@ -258,6 +265,9 @@ class Test_SessionMgr(unittest.TestCase):
         print("Testing print_all_plaintext(). Sorted by city")
         sm.print_all_plaintext(sort_field='city', meta_fields=['user'])
     
+        if mute_output:
+            # Unsupress stdout
+            sys.stdout = sys.__stdout__
 
     def test_session_mgr_pie_graph_metadata(self):
         """

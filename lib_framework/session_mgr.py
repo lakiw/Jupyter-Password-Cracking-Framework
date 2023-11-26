@@ -18,6 +18,8 @@ from .hashcat_mgr import HashcatMgr
 from .challenge_specific_functions import load_challenge_files
 from .hash import HashList
 from .target import TargetList
+from .session import SessionList
+from .strike import StrikeList
 
 
 class SessionMgr:
@@ -66,6 +68,10 @@ class SessionMgr:
         # Init the scores
         if "score_info" in self.config:
             self.hash_list.init_scores(self.config['score_info'])
+
+        # Init the SessionList and Strikes
+        self.session_list = SessionList()
+        self.strike_list = StrikeList()
 
     def load_main_pots(self, verbose=True, update_only=True):
         """

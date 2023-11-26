@@ -249,3 +249,39 @@ class PWCrackerMgr:
             normalized_hash: (str) The normalized verion of the hash
         """
         return hash
+    
+    def read_logfile(self, filename, session_list, strike_list):
+        """
+        Stub function for parsing a password cracker log
+
+        This should be implimented in the actual password manager implimentations
+
+        Inputs:
+            filename: (str) The full path and filename of the log to parse
+
+            session_list: (SessionList) Keeps track of password cracking sessions.
+            Mostly used for JtR logs
+
+            strike_list: (StrikeList) Keeps track of sucessful rules
+
+        Returns:
+            success: (Bool) True if this completed properly
+                            False if an error occured
+        """
+        return False
+    
+    def is_logfile(self, filename):
+        """
+        Stub function that says if this log file is the correct format for this
+        password cracker manager
+
+        This should be implimented in the actual password manager implimentations
+
+        Inputs:
+            filename: (str) The full path and filename of the log to parse
+
+        Returns:
+            success: (Bool) True if this looks like a log file for this program
+                            False if an error occured or this is not a supported format
+        """
+        return False
