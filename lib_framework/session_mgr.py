@@ -187,9 +187,7 @@ class SessionMgr:
         print()
         print(f"Total Score: {total_score}")
         print(f"Maximum Possible Score: {max_total_score}")
-                
 
-    
     def print_metadata_categories(self):
         """
         Prints the metadata categories available to search/graph on
@@ -492,6 +490,8 @@ class SessionMgr:
             # Format the hash for the target password cracking program
             if is_jtr:
                 out_hash = self.jtr.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
+                # Add in the hash_id as a username to make parsing the log files easier
+                out_hash = f"{hash_id}:{out_hash}"
             else:
                 out_hash = self.hc.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
             

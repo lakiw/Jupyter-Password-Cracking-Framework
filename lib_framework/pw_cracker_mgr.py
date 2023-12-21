@@ -250,7 +250,7 @@ class PWCrackerMgr:
         """
         return hash
     
-    def read_logfile(self, filename, session_list, strike_list):
+    def read_logfile(self, filename, session_list, strike_list, hash_list):
         """
         Stub function for parsing a password cracker log
 
@@ -263,6 +263,8 @@ class PWCrackerMgr:
             Mostly used for JtR logs
 
             strike_list: (StrikeList) Keeps track of sucessful rules
+
+            hash_list: (HashList) Used to look up hashes to match cracks to them
 
         Returns:
             success: (Bool) True if this completed properly

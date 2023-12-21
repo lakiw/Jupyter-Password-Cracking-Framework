@@ -79,7 +79,7 @@ class JTRMgr(PWCrackerMgr):
 
         return hash
     
-    def read_logfile(self, filename, session_list, strike_list):
+    def read_logfile(self, filename, session_list, strike_list, hash_list):
         """
         Reads the JtR logfiles
 
@@ -133,6 +133,10 @@ class JTRMgr(PWCrackerMgr):
             cur_wordlist = None
             cur_strikes = []
 
+            # Running hashed value to assign strikes that don't have a hash associated with them
+            # This way if the log file is run again, no duplicate strikes will be created
+            running_hash = None
+
             while line:
 
                 # Doing this at the top, so if I select "continue" to skip a line then I don't have to
@@ -178,6 +182,10 @@ class JTRMgr(PWCrackerMgr):
                 time_second = int(split_line[0])
                 log_msg = split_line[1]
 
+                # Update the running hash here. This is independent of the time so if the
+                # exact same attack is run again, it "might" detect duplicates.
+                running_hash = hash(f"{log_msg}{running_hash}")
+
                 # Now parse the various log messages
 
                 # If the session was finished
@@ -191,7 +199,7 @@ class JTRMgr(PWCrackerMgr):
 
                     # Add strikes to the session
                     for strike_id in cur_strikes:
-                        session_list.sessions[strike_id].add_strike(strike_id)
+                        session_list.sessions[session_id].add_strike(strike_id)
                     
                     active_session = False
                     compleated = False
@@ -199,6 +207,7 @@ class JTRMgr(PWCrackerMgr):
                     cur_rule = None
                     cur_wordlist = None
                     cur_strikes = []
+                    running_hash = None
                     session_info =  {
                         'mode':None,
                         'options':{}
@@ -243,12 +252,28 @@ class JTRMgr(PWCrackerMgr):
                     if not session_info['mode']:
                         session_info['mode'] = "wordlist"
                     cur_attack = "wordlist"
+                
+                # Incremental mode
+                elif log_msg.strip().startswith('Proceeding with "incremental" mode: '):
+                    session_info['mode'] = "incremental"
+                    cur_attack = "incremental"
+
+                    # Get the incremental training set being used
+                    split_line = log_msg.strip().split('Proceeding with "incremental" mode: ')
+                    cur_rule = split_line[1]
 
                 # Get the wordlist being used
                 elif log_msg.strip().startswith("- Wordlist file: "):
                     split_line = log_msg.strip().split("- Wordlist file: ")
                     # Just get the dictionary name
                     cur_wordlist = Path(split_line[1]).name
+                
+                # Get the encoding of input characters. Might be relevant
+                # for certain challenges
+                elif "input encoding enabled" in log_msg.strip():
+                    split_line = log_msg.strip().split(" input encoding enabled")
+                    split_line = split_line[0].split("- ")
+                    session_info['options']['encoding'] = split_line[1]
 
                 # It might be helpful to see how many rules were run to identify
                 # how useful/effecient different mangling rule sets are
@@ -256,6 +281,11 @@ class JTRMgr(PWCrackerMgr):
                     split_line = log_msg.strip().split(" preprocessed word mangling rules")
                     split_line = split_line[0].split("- ")
                     session_info['options']['num_rules'] = int(split_line[1])
+
+                # Mangling ruleset used
+                elif log_msg.strip().startswith("- Rules: "):
+                    split_line = log_msg.strip().split("- Rules: ")
+                    session_info['options']['ruleset'] = split_line[1]
 
                 # Parse the rules as they are processed
                 elif log_msg.strip().startswith("- Rule #"):
@@ -278,9 +308,41 @@ class JTRMgr(PWCrackerMgr):
                 elif log_msg.strip().startswith("- No word mangling rules"):
                     cur_rule = ":"
 
-                # A hash was cracked, but JtR wasn't configured to log which hash
-                elif log_msg.strip() == ("+ Cracked ?"):
-                    strike_id = strike_list.add(self, None, {"attack":cur_attack, "rule":cur_rule, "wordlist":cur_wordlist})
+                # A hash was cracked
+                elif log_msg.strip().startswith("+ Cracked"):
+
+                    # Get the username and strip out the plaintext if that was logged
+                    split_line = log_msg.strip().split("+ Cracked ")
+                    # The plaintext might have a ":" in it so only split on the first one that
+                    # divides the username from the plaintext
+                    split_line = split_line[1].split(":",1)
+                    username = split_line[0]
+                    plaintext = None
+                    if len(split_line) != 1:
+                        plaintext = split_line[1]
+
+                    # Check if the username is a hash_id or not
+                    hash_id = None
+                    # A username wasn't specified
+                    if username == "?":
+                        username = None
+                    elif username.isdigit():
+                        hash_id = int(username)
+                        # Check if the hash_id is legitamite
+                        if hash_id in hash_list.hashes:
+                            continue
+                        else:
+                            # hash_id wasn't found so set it to be none again
+                            # and treat it as a straight username
+                            hash_id = None
+
+                    
+
+                    # Create the strike
+                    if cur_attack in ["wordlist", "single"]:
+                        strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "rule":cur_rule, "wordlist":cur_wordlist, "duplicate_detection_id":running_hash})
+                    elif cur_attack == "incremental":
+                        strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "mode":cur_rule, "duplicate_detection_id":running_hash})
                     if strike_id not in cur_strikes:
                         cur_strikes.append(strike_id)
                 
@@ -306,13 +368,42 @@ class JTRMgr(PWCrackerMgr):
                     continue
                 elif log_msg.strip().startswith("- No information to base candidate passwords on"):
                     continue
+                elif log_msg.strip().startswith("Enabling duplicate candidate password suppressor"):
+                    continue
+                elif log_msg.strip().startswith("Remaining "):
+                    continue
+                elif log_msg.strip().startswith("- suppressed "):
+                    continue
+                elif log_msg.strip().startswith("Cost "):
+                    continue
+                elif log_msg.strip().startswith("- Passwords in this logfile are UTF-8 encoded"):
+                    continue
+                # We get the actual dictionary from an earlier logfile
+                elif log_msg.strip().startswith("- loading wordfile"):
+                    continue
+                elif log_msg.strip().startswith("- wordfile had"):
+                    continue
+                # I'm struggling with this one. I may want to add it back as an alternative
+                # rule since it can crack a password and right now it would be misattributed
+                # to the next rule
+                elif log_msg.strip().startswith("- Oldest still in use is now rule"):
+                    continue
+                # Skip a lot of the incremental logs
+                elif log_msg.strip().startswith("- Trying length "):
+                    continue
+                elif log_msg.strip().startswith("- Switching to length "):
+                    continue
+                elif log_msg.strip().startswith("- Expanding tables for length "):
+                    continue
+                elif log_msg.strip().startswith("- Lengths "):
+                    continue
                 # We're getting the the hash type from the "Hash Type" log message. So we can skip this message
                 elif log_msg.strip().startswith("- Algorithm:"):
                     continue
                 # Need to look into what this really means, and where stacked rules can come into play
                 elif log_msg.strip().startswith("- No stacked rules"):
                     continue
-                
+                # Doing this to indentify log lines I haven't set up rules to parse yet
                 else:
                     print(f"{log_msg.strip()}")
                 
