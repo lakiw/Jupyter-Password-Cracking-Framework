@@ -48,7 +48,7 @@ class Test_JTRMgr(unittest.TestCase):
 
     def test_format_hash(self):
         """
-        Checks that the $dyanamic_X$ hash identifies are properly stripped
+        Checks that the $dyanamic_X$ hash identifies are properly configured
         """
         jtr_mgr = JTRMgr({})
 
@@ -125,9 +125,47 @@ class Test_JTRMgr(unittest.TestCase):
         with unittest.mock.patch('builtins.open', new_callable=mock_open, read_data=test_data):
             assert jtr_mgr.read_logfile("TestFile", session_list, strike_list, hash_list)
 
-        print("SESSIONS")
         for key, value in session_list.sessions.items():
-            print(f"{key}:{value.mode}:{value.options}:{value.strike_id_list}:{value.hash_type}")
-        #print("STRIKES")
-        #for key, value in strike_list.strikes.items():
-        #    print(f"{key}:{value.details}")
+            if key == 0:
+                assert value.mode == "wordlist"
+                assert value.options['num_loaded'] == 5455
+                assert value.options['command_line'] == "Test"
+                assert value.options['encoding'] == 'UTF-8'
+                assert value.options['ruleset'] == 'best64'
+                assert value.options['total_time'] == 16
+                assert value.hash_type == '1337'
+        assert strike_list.hash_id_lookup[0] == [0]
+        assert strike_list.hash_id_lookup[2] == [1]
+
+    def test_debug_real_logfile(self):
+        """
+        Checks that JtRManager reads logfiles properly
+        """
+        jtr_mgr = JTRMgr({})
+
+        # Initialize the sessionlist
+        session_list = SessionList()
+
+        # Initialize the strikelist
+        strike_list = StrikeList()
+
+        # Initialize the hashlist
+        hash_list = HashList()
+        hash_list.add_type("type1", "type1", "1337", "high")
+        hash_list.add_type("type2", "type2", "31337", "low")
+
+        # Add the three hashes
+        hash_list.add("hash1", type="type1")
+        hash_list.add("hash2", type="type2")
+        hash_list.add("hash3", type="type1")
+
+        import os
+        file_name = os.path.join(
+            '.',
+            'challenge_files',
+            'CMIYC2022_Street',
+            'example_john.session.log'
+            )
+        assert jtr_mgr.read_logfile(file_name, session_list, strike_list, hash_list)
+        for key, value in session_list.sessions.items():
+            print(f"{value.strike_id_list}")

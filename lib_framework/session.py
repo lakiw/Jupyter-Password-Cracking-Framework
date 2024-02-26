@@ -72,9 +72,7 @@ class Session:
         self.hashes = []
 
         # How many hashes were cracked in the attack
-        # Don't set this now. Instead initialize it/increment it
-        # as cracks are added to this class
-        self.num_cracked_hashes = None
+        self.num_cracked_hashes = 0
 
         # Just contains the indexes to the specific strikes
         # Doing this way since most times I expect users will want to look
@@ -98,6 +96,7 @@ class Session:
         if strike_id in self.strike_id_list:
             return 0
         self.strike_id_list.append(strike_id)
+        self.num_cracked_hashes += 1
         return 1
     
     def add_hash(self, hash_id):

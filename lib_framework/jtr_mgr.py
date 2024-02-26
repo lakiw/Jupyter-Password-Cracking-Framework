@@ -60,7 +60,7 @@ class JTRMgr(PWCrackerMgr):
     def format_hash(self, hash, type):
         """
         Converts the hash from a normalized format to the the version 
-        JtR expects
+        JtR expects.
 
         For example, add the $dynamic_X$ prefix of JtR hashes.
 
@@ -83,10 +83,18 @@ class JTRMgr(PWCrackerMgr):
         """
         Reads the JtR logfiles
 
-        Note: Depending on if the config file is configured for logging successful strikes or not
-        the output can be somewhat different. Aka by default JtR will not log the hash with a strike
-        so the strike will be assigned to the 'None' hash. Longer term, I'm sure I can do some sort
-        of post-processing to match up strikes with plaintexts in potfiles to help a bit with this.
+        Note: There is a lot of complications when it comes to mapping a cracked hash in the JtR logfile
+        to a hash in this framework. That's because JtR logs the username associated with a cracked
+        password and not the hash itself. If a username is not specificed it lists it as a '?' which makes
+        it very difficult to figure out what was actually cracked. An additional config option can be specified
+        in the JtR config to also output the cracked password to the log, but that can cause problems and
+        isn't always accurate.
+
+        This function will see if a username has been specified and attempt to match it up to a specific 
+        hash so the strikes can be correctly assigned to that hash. If that fails, strikes will be assigned 
+        to the 'None' hash. Other portions of this framework will be responsible for creating JtR hashfiles
+        that have approprite usernames assigned to them (by default the username will be the hash id in this
+        framework).
 
         Note 2: There is very little type checking, sanity checking, error handling in this. I'd
         recommend using a try/except around calls to this function. I didn't want to supress errors
@@ -110,7 +118,7 @@ class JTRMgr(PWCrackerMgr):
             print(f"Error: The file {filename} is not a JtR formatted log file")
             return False
 
-        # Open the logfile up for writing
+        # Open the logfile up for reading
         with open(filename) as logfile:
 
             # Parsing the logfile line by line since these logfiles can get huge. This provides
@@ -329,23 +337,20 @@ class JTRMgr(PWCrackerMgr):
                     elif username.isdigit():
                         hash_id = int(username)
                         # Check if the hash_id is legitamite
-                        if hash_id in hash_list.hashes:
-                            continue
-                        else:
+                        if hash_id not in hash_list.hashes:
                             # hash_id wasn't found so set it to be none again
                             # and treat it as a straight username
                             hash_id = None
-
-                    
 
                     # Create the strike
                     if cur_attack in ["wordlist", "single"]:
                         strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "rule":cur_rule, "wordlist":cur_wordlist, "duplicate_detection_id":running_hash})
                     elif cur_attack == "incremental":
                         strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "mode":cur_rule, "duplicate_detection_id":running_hash})
+
                     if strike_id not in cur_strikes:
                         cur_strikes.append(strike_id)
-                
+
                 # Lines that are currently being ignored. (Doing it this way to make it easier to
                 # identify interesting lines I haven't handled yet.
                 elif log_msg.strip().startswith("- Candidate passwords will be buffered and tried in chunks of"):
@@ -402,6 +407,9 @@ class JTRMgr(PWCrackerMgr):
                     continue
                 # Need to look into what this really means, and where stacked rules can come into play
                 elif log_msg.strip().startswith("- No stacked rules"):
+                    continue
+                # Remove non-pertinant JtR debugging logs
+                elif log_msg.strip().startswith("Disabling duplicate candidate password suppressor"):
                     continue
                 # Doing this to indentify log lines I haven't set up rules to parse yet
                 else:
