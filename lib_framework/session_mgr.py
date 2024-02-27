@@ -10,6 +10,7 @@ functions in the Jupyter Notebook
 
 # Data analysis and visualization imports
 import matplotlib.pyplot as plt
+import os
 
 # Local imports
 from .config_mgmt import load_config
@@ -49,6 +50,23 @@ class SessionMgr:
             self.hc = HashcatMgr(self.config['hashcat_config'])
         else:
             self.hc = HashcatMgr({})
+
+        # Initialize the log file directionry
+        if "log_info" in self.config:
+            if "default_log_folder" in self.config['log_info']:
+
+                self.default_log_folder = self.config['log_info']['default_log_folder']
+                if not os.path.isdir(self.default_log_folder):
+                    print("Warning, it doesn't look like the 'default_log_folder' in the config points")
+                    print("to an existing folder.")
+                    print(f"The current 'default_log_folder' is {self.default_log_folder}")
+
+            else:
+                print("Warning: You have a 'log_info' entry in your config, but not a 'default_log_folder'")
+                print("This means searching for log files will be disabled for this session unless you")
+                print("manually set the SessionMgr.default_log_folder variable")
+        else:
+            self.default_log_folder = None 
 
         # Load the hashes
         self.hash_list = HashList()
@@ -613,3 +631,57 @@ class SessionMgr:
             file.close()
 
         return wordlist
+    
+    def read_all_logs(self):
+        """
+        Reads in all of the password cracking log files (JtR and HashCat) and save the Sessions
+        and Strikes.
+
+        This is a top level function to hide the default folder from the user so they don't need
+        to remember to pass it in.
+
+        Inputs:
+            None
+
+        Outputs:
+            True: Everything compleated sucessfully
+
+            False: There was a problem
+        """
+
+        # First check to see if there was a default log directory specified or not
+        if not self.default_log_folder:
+            print("Error: No default log directory was specified. Set [log_info][default_log_folder] in")
+            print("the config file, or set SessionMgr.default_log_folder in this class")
+            return False
+        
+        return self.read_logs_from_folder(self.default_log_folder)
+    
+    def read_logs_from_folder(self, folder_name):
+        """
+        Reads in all of the password cracking log files (JtR and HashCat) and save the Sessions
+        and Strikes.
+
+        This is a top level function to hide the default folder from the user so they don't need
+        to remember to pass it in.
+
+        Inputs:
+            folder_name: The folder to read the logs in from
+
+        Outputs:
+            True: Everything compleated sucessfully
+
+            False: There was a problem
+        """
+
+        # If at least one log was successfully parsed
+        log_success = False
+
+        # Parse the JtR log files
+        for file_name in os.listdir(folder_name):
+            if file_name.endswith(".log"):
+                full_file_name = os.path.join(folder_name, file_name)
+                result = self.jtr.read_logfile(filename=full_file_name, session_list=self.session_list, strike_list=self.strike_list, hash_list=self.hash_list)
+                if result:
+                    log_success = True
+        return log_success

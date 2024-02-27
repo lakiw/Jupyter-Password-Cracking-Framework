@@ -433,10 +433,12 @@ class JTRMgr(PWCrackerMgr):
         """
 
         # Just checking the first line since that has a very specific format
-        with open(filename) as logfile:
-            line = logfile.readline().strip()
-            if line == "0:00:00:00 Starting a new session":
-                return True
-
+        try:
+            with open(filename) as logfile:
+                line = logfile.readline().strip()
+                if line == "0:00:00:00 Starting a new session":
+                    return True
+        except FileNotFoundError:
+            print(f"Error: Could not find the file:{filename}")
         return False
         

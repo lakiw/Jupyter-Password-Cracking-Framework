@@ -8,6 +8,11 @@
   hashcat_config:
     main_pot_file: "./challenge_files/CMIYC2022_Street/hc_cmiyc2022.potfile"
 
+# This is where password cracking tool log specific data will be saved
+  log_info:
+    default_log_folder: "./challenge_files/CMIYC2022_Street/"
+
+
 # This is information on where to load the challenge files. If they have additional metadata you
 # may need to write a custom function to import them, but in this case they are pure raw hash lists
 # so we can use the "plain_hash" plugin to import them.
