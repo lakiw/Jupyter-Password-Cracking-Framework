@@ -137,10 +137,8 @@ class SessionList:
         # Keeps track of the next index number to assign for a session
         self.next_index = 0
 
-        # I'm holding off on other lookup datastructures until I get
-        # a better feeling about what would be useful. Ideally this would
-        # keep track of keyspace that has been exhausted, but that gets complicated
-        # since different hashes might have had different attacks run against them.
+        # Sessions sorted by hash type
+        self.hash_type_lookup = {}
 
     def add(self, pw_cracker_mgr, session_info, compleated=False, check_duplicates=True):
         """
@@ -184,6 +182,11 @@ class SessionList:
                     for key, value in session_info['options'].items():
                         if key in session.options and value == session.options[key]:
                             pass
+
+                        # Only count this new session if the runtime was longer than the previous one
+                        elif key == "total_time" and session.options["total_time"] < value:
+                            pass
+
                         else:
                             exact_match = False
                             break
@@ -192,11 +195,24 @@ class SessionList:
                     # Update compleated if it was not set before
                     if not session.compleated:
                         session.compleated = compleated
+
+                    # Update time if that was not set before
+                    if "total_time" in session_info['options']:
+                        session.options['total_time'] = session_info['options']['total_time']
                     return session_id 
 
         session_id = self.next_index
         self.next_index += 1
 
         self.sessions[session_id] = Session(pw_cracker_mgr, session_info, compleated)
+
+        # Update the lookup indexes
+        identified_hash_type = "unknown"
+        if self.sessions[session_id].hash_type:
+            identified_hash_type = self.sessions[session_id].hash_type
+
+        if identified_hash_type not in self.hash_type_lookup:
+            self.hash_type_lookup[identified_hash_type] = []
+        self.hash_type_lookup[identified_hash_type].append(session_id)
 
         return session_id

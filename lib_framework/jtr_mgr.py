@@ -141,7 +141,7 @@ class JTRMgr(PWCrackerMgr):
             cur_wordlist = None
             cur_strikes = []
 
-            # Running hashed value to assign strikes that don't have a hash associated with them
+            # Running hashed value of all the lines parsed so far
             # This way if the log file is run again, no duplicate strikes will be created
             running_hash = None
 
@@ -203,6 +203,12 @@ class JTRMgr(PWCrackerMgr):
                     
                     total_time = time_day * (24 * 60 * 60) + time_hour * (60 * 60) + time_minute * 60 + time_second
                     session_info['options']['total_time'] = total_time
+
+                    # To detect if pipe mode was used, I "could" parse the command line, but this is a bit easier
+                    # since I'm worried that by parsing the command line I'll have some weird edge case
+                    if session_info['mode'] == "wordlist" and "wordlist" not in session_info['options']:
+                        session_info['mode'] = "pipe"
+
                     session_id = session_list.add(self, session_info, compleated=compleated, check_duplicates=True)
 
                     # Add strikes to the session
@@ -263,19 +269,86 @@ class JTRMgr(PWCrackerMgr):
                 
                 # Incremental mode
                 elif log_msg.strip().startswith('Proceeding with "incremental" mode: '):
-                    session_info['mode'] = "incremental"
+
+                    # Single attacks may switch to incremental depending on how they are run
+                    if session_info['mode'] == "single":
+                        session_info['options']['incremental_started'] = time_day * (24 * 60 * 60) + time_hour * (60 * 60) + time_minute * 60 + time_second
+                    else:
+                        session_info['mode'] = "incremental"
+
                     cur_attack = "incremental"
 
                     # Get the incremental training set being used
                     split_line = log_msg.strip().split('Proceeding with "incremental" mode: ')
                     cur_rule = split_line[1]
+                    session_info['options']['incremental'] = cur_rule
+
+                # Running Mask mode
+                elif log_msg.strip().startswith('Proceeding with mask mode'):
+                    session_info['mode'] = "mask"
+
+                    # Note, the mask used isn't captured in a specific log line, so we need to extract it from the command line
+                    split_line = session_info['options']['command_line'].split('--mask=')
+
+                    # A mask was specified on the command line
+                    if len(split_line) == 2:
+                        # Dev note: I know this will break if you have spaces in your mask.... Don't know how to avoid that
+                        split_line = split_line[1].split(' ')
+                        cur_rule = split_line[0]
+                        session_info['options']['mask']= split_line[0]
+                    # Using the default mask in jtr config
+                    else:
+                        cur_rule = "default"
+                        session_info['options']['mask']= "default"
+
+                # Reading password guesses in via stdin
+                elif log_msg.strip().startswith('- Reading candidate passwords from stdin'):
+                    session_info['mode'] = "stdin"
+                    session_info['options']['duplicate_detection_id'] = running_hash
+                
+                # Reading password guesses via loopback mode (aka reads them in from a pot file
+                elif log_msg.strip().startswith('Proceeding with loopback mode'):
+                    session_info['mode'] = 'loopback'
+                    cur_attack = "wordlist"
+                    session_info['options']['duplicate_detection_id'] = running_hash
+
+                # Get the loopback wordlist being used
+                elif log_msg.strip().startswith("- Loopback pot file: "):
+                    split_line = log_msg.strip().split("- Loopback pot file: ")
+                    # Just get the dictionary name
+                    cur_wordlist = Path(split_line[1]).name
+                    session_info['options']['wordlist'] = cur_wordlist
 
                 # Get the wordlist being used
                 elif log_msg.strip().startswith("- Wordlist file: "):
                     split_line = log_msg.strip().split("- Wordlist file: ")
                     # Just get the dictionary name
                     cur_wordlist = Path(split_line[1]).name
+                    session_info['options']['wordlist'] = cur_wordlist
                 
+                # PRINCE mode attack being used
+                elif log_msg.strip().startswith("Proceeding with PRINCE"):
+                    session_info['mode'] = 'prince'
+            
+                elif log_msg.strip().startswith("- Will generate candidates of length "):
+                    split_line = log_msg.strip().split("- Will generate candidates of length ")
+                    split_line = split_line[1].split(" - ")
+                    session_info['options']['min_length'] = split_line[0]
+                    session_info['options']['max_length'] = split_line[1]
+
+                elif log_msg.strip().startswith("- Using chains with "):
+                    split_line = log_msg.strip().split("- Using chains with ")
+                    split_line = split_line[1].split(" - ")
+                    session_info['options']['min_elements'] = split_line[0]
+                    session_info['options']['max_elements'] = split_line[1]
+
+                # Prince specific wordlist log line
+                elif log_msg.strip().startswith("- Input file: "):
+                    split_line = log_msg.strip().split("- Input file: ")
+                    # Just get the dictionary name
+                    cur_wordlist = Path(split_line[1]).name
+                    session_info['options']['wordlist'] = cur_wordlist
+
                 # Get the encoding of input characters. Might be relevant
                 # for certain challenges
                 elif "input encoding enabled" in log_msg.strip():
@@ -304,6 +377,9 @@ class JTRMgr(PWCrackerMgr):
 
                     # Remove the JtR fixup info
                     split_line = split_line.split("' accepted as '")
+                    if len(split_line) == 2:
+                        split_line = split_line[1].split("'")
+                    split_line = split_line[0].split("' accepted")
 
                     # Remove the "rejected" from rejected rules. This shouldn't matter
                     # since rejected rules should not crack passwords...
@@ -343,13 +419,33 @@ class JTRMgr(PWCrackerMgr):
                             hash_id = None
 
                     # Create the strike
-                    if cur_attack in ["wordlist", "single"]:
+                    if cur_attack in ["wordlist", "single", "pipe", "stdin", "loopback", "prince"]:
                         strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "rule":cur_rule, "wordlist":cur_wordlist, "duplicate_detection_id":running_hash})
-                    elif cur_attack == "incremental":
+                    elif cur_attack in ["incremental", "mask"]:
                         strike_id = strike_list.add(self, hash_id, {"attack":cur_attack, "mode":cur_rule, "duplicate_detection_id":running_hash})
+                    else:
+                        print(f"Warning, unkonwn attack type when creating the strike: {cur_attack}")
+                        print("Skipping adding the strike")
+                        continue
 
                     if strike_id not in cur_strikes:
                         cur_strikes.append(strike_id)
+
+                # An error occured, session was not run/compleated
+                # Not saving these sessions since they usually are caused by invalid command line inputs so no
+                # real cracking session was run
+                elif log_msg.strip().startswith("Terminating on error"):
+                    active_session = False
+                    compleated = False
+                    cur_attack = None
+                    cur_rule = None
+                    cur_wordlist = None
+                    cur_strikes = []
+                    running_hash = None
+                    session_info =  {
+                        'mode':None,
+                        'options':{}
+                        }
 
                 # Lines that are currently being ignored. (Doing it this way to make it easier to
                 # identify interesting lines I haven't handled yet.
@@ -411,10 +507,54 @@ class JTRMgr(PWCrackerMgr):
                 # Remove non-pertinant JtR debugging logs
                 elif log_msg.strip().startswith("Disabling duplicate candidate password suppressor"):
                     continue
+                elif log_msg.strip().startswith("- dupe suppression:"):
+                    continue
+                elif log_msg.strip().startswith("- Some rule logging suppressed."):
+                    continue
+                # Removing PRINCE debug lines
+                elif log_msg.strip().startswith("Loading elements from wordlist."):
+                    continue
+                elif log_msg.strip().startswith("Initializing chains"):
+                    continue
+                elif log_msg.strip().startswith("- Using default output length distribution"):
+                    continue
+                elif log_msg.strip().startswith("Calculating keyspace"):
+                    continue
+                elif log_msg.strip().startswith("- Memory use for PRINCE: "):
+                    continue
+                elif log_msg.strip().startswith("Sorting chains by keyspace"):
+                    continue
+                elif log_msg.strip().startswith("Sorting global order by password length counts"):
+                    continue
+                elif log_msg.strip().startswith("Starting candidate generation"):
+                    continue
+                elif log_msg.strip().startswith("PRINCE done. Cleaning up"):
+                    continue
+                elif log_msg.strip().startswith("Loading elements from wordlist"):
+                    continue
+                elif log_msg.strip().startswith("- Keyspace size "):
+                    continue
                 # Doing this to indentify log lines I haven't set up rules to parse yet
                 else:
-                    print(f"{log_msg.strip()}")
-                
+                    print(f"Unsuported Log Line: {log_msg.strip()}")
+
+            # Clean up and capture any sessions that are being run right now
+            if active_session:
+                total_time = time_day * (24 * 60 * 60) + time_hour * (60 * 60) + time_minute * 60 + time_second
+                session_info['options']['total_time'] = total_time
+
+                # To detect if pipe mode was used, I "could" parse the command line, but this is a bit easier
+                # since I'm worried that by parsing the command line I'll have some weird edge case
+                if session_info['mode'] == "wordlist" and "wordlist" not in session_info['options']:
+                    session_info['mode'] = "pipe"
+                    session_info['options']['duplicate_detection_id'] = running_hash
+
+                session_id = session_list.add(self, session_info, compleated=compleated, check_duplicates=True)
+
+                # Add strikes to the session
+                for strike_id in cur_strikes:
+                    session_list.sessions[session_id].add_strike(strike_id)
+
         return True
     
     def is_logfile(self, filename):
