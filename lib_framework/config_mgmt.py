@@ -35,7 +35,6 @@ def is_valid_config_key(key):
         'session_management',
         'challenge_files',
         'score_info',
-        'log_info'
     ]
 
     if key in valid_keys:

@@ -22,7 +22,8 @@ class Mixin:
         and Strikes.
 
         This is a top level function to hide the default folder from the user so they don't need
-        to remember to pass it in.
+        to remember to pass it in. I'm also putting most of the functionality in self.read_logs_from_folder()
+        since I want to be able to easily manually call the lower level function with a specific folder.
 
         Inputs:
             None
@@ -32,16 +33,20 @@ class Mixin:
 
             False: There was a problem
         """
+        jtr_success = False
+        if self.jtr.log_directory:
+            jtr_success = self.read_logs_from_folder(self.jtr.log_directory, cracker_name="jtr")
 
-        # First check to see if there was a default log directory specified or not
-        if not self.default_log_folder:
-            print("Error: No default log directory was specified. Set [log_info][default_log_folder] in")
-            print("the config file, or set SessionMgr.default_log_folder in this class")
-            return False
+        hc_success = False
+        if self.hc.log_directory:
+            hc_success = self.read_logs_from_folder(self.jtr.log_directory, cracker_name="hc")
+
+        if jtr_success or hc_success:
+            return True
         
-        return self.read_logs_from_folder(self.default_log_folder)
-    
-    def read_logs_from_folder(self, folder_name):
+        return False
+        
+    def read_logs_from_folder(self, folder_name, cracker_name="all"):
         """
         Reads in all of the password cracking log files (JtR and HashCat) and save the Sessions
         and Strikes.
@@ -62,12 +67,25 @@ class Mixin:
         log_success = False
 
         # Parse the JtR log files
-        for file_name in os.listdir(folder_name):
-            if file_name.endswith(".log"):
-                full_file_name = os.path.join(folder_name, file_name)
-                result = self.jtr.read_logfile(filename=full_file_name, session_list=self.session_list, strike_list=self.strike_list, hash_list=self.hash_list)
-                if result:
-                    log_success = True
+        if cracker_name in ['all', 'jtr']:
+            for file_name in os.listdir(folder_name):
+                if file_name.endswith(".log"):
+                    full_file_name = os.path.join(folder_name, file_name)
+                    if self.jtr.is_logfile(filename=full_file_name):
+                        result = self.jtr.read_logfile(filename=full_file_name, session_list=self.session_list, strike_list=self.strike_list, hash_list=self.hash_list)
+                        if result:
+                            log_success = True
+
+        # Parse the HC log files
+        if cracker_name in ['all', 'hc']:
+            for file_name in os.listdir(folder_name):
+                if file_name.endswith(".log"):
+                    full_file_name = os.path.join(folder_name, file_name)
+                    if self.hc.is_logfile(filename=full_file_name):
+                        result = self.hc.read_logfile(filename=full_file_name, session_list=self.session_list, strike_list=self.strike_list, hash_list=self.hash_list)
+                        if result:
+                            log_success = True
+
         return log_success
     
     def print_log_sessions(self):

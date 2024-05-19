@@ -11,7 +11,6 @@ functions in the Jupyter Notebook
 # Data analysis and visualization imports
 import matplotlib.pyplot as plt
 import os
-from collections import Counter
 
 # Local imports
 from .config_mgmt import load_config
@@ -23,9 +22,10 @@ from .target import TargetList
 from .session import SessionList
 from .strike import StrikeList
 from ._session_mgr_log_handling import Mixin as LogHandlingMixin
+from ._session_mgr_strike_handling import Mixin as StrikeHandlingMixin
 
 
-class SessionMgr(LogHandlingMixin):
+class SessionMgr(LogHandlingMixin, StrikeHandlingMixin):
     """
     Making it easy to reference hashes, configs,
     and interfaces from the Jupyter Notebook
@@ -52,23 +52,6 @@ class SessionMgr(LogHandlingMixin):
             self.hc = HashcatMgr(self.config['hashcat_config'])
         else:
             self.hc = HashcatMgr({})
-
-        # Initialize the log file directionry
-        if "log_info" in self.config:
-            if "default_log_folder" in self.config['log_info']:
-
-                self.default_log_folder = self.config['log_info']['default_log_folder']
-                if not os.path.isdir(self.default_log_folder):
-                    print("Warning, it doesn't look like the 'default_log_folder' in the config points")
-                    print("to an existing folder.")
-                    print(f"The current 'default_log_folder' is {self.default_log_folder}")
-
-            else:
-                print("Warning: You have a 'log_info' entry in your config, but not a 'default_log_folder'")
-                print("This means searching for log files will be disabled for this session unless you")
-                print("manually set the SessionMgr.default_log_folder variable")
-        else:
-            self.default_log_folder = None 
 
         # Load the hashes
         self.hash_list = HashList()
@@ -472,39 +455,9 @@ class SessionMgr(LogHandlingMixin):
             if hash.plaintext:
                 continue
 
-            # Next filter based on hash type if it was specified
-            if hash_type and self.hash_list.type_lookup[hash_id] != hash_type:
-                continue
-
             # Next filter based on filters/metadata
-            if filter:
-                # Assume it matches and break when it doesn't
-                match_filter = True
-                
-                # There can be multiple filters, so go through each one
-                for filter_key, filter_value in filter.items():
-
-                    # Need to find an instance where this hash maches something matching this filter
-                    found = False
-
-                    # Go through all the targets that match this filter
-                    for cur_value, target_ids in self.target_list.meta_lookup[filter_key].items():
-                        # If a value has been specified, skip not filter_value entries
-                        if filter_value:
-                            if cur_value != filter_value:
-                                continue
-                    
-                        for single_target in target_ids:
-                            if hash_id in self.target_list.targets[single_target].hashes:
-                                found = True
-                                break
-
-                    if not found:
-                        match_filter = False
-                        break
-                
-                if not match_filter:
-                    continue
+            if not self._filter_hash_id(hash_id=hash_id, hash_type=hash_type, filter=filter):
+                continue
 
             # Add this hash to the left list
             # Format the hash for the target password cracking program
@@ -587,39 +540,9 @@ class SessionMgr(LogHandlingMixin):
             if not hash.plaintext:
                 continue
 
-            # Next filter based on hash type if it was specified
-            if hash_type and self.hash_list.type_lookup[hash_id] != hash_type:
-                continue
-
             # Next filter based on filters/metadata
-            if filter:
-                # Assume it matches and break when it doesn't
-                match_filter = True
-                
-                # There can be multiple filters, so go through each one
-                for filter_key, filter_value in filter.items():
-
-                    # Need to find an instance where this hash maches something matching this filter
-                    found = False
-
-                    # Go through all the targets that match this filter
-                    for cur_value, target_ids in self.target_list.meta_lookup[filter_key].items():
-                        # If a value has been specified, skip not filter_value entries
-                        if filter_value:
-                            if cur_value != filter_value:
-                                continue
-                    
-                        for single_target in target_ids:
-                            if hash_id in self.target_list.targets[single_target].hashes:
-                                found = True
-                                break
-
-                    if not found:
-                        match_filter = False
-                        break
-                
-                if not match_filter:
-                    continue
+            if not self._filter_hash_id(hash_id=hash_id, hash_type=hash_type, filter=filter):
+                continue
 
             # Add this hash to the list
             wordlist.append(hash.plaintext)
@@ -634,62 +557,17 @@ class SessionMgr(LogHandlingMixin):
 
         return wordlist
     
-    def create_ruleset(self, file_name=None, hash_type=None, filter=None):
+    def _filter_hash_id(self, hash_id, hash_type=None, filter=None):
         """
-        Creates a set of password cracking rules based on Strikes (rules that cracked passwords)
+        Returns True if the hash referenced by hash_id matches the filters. False otherwise.
 
-        Dev Note: Currently not doing any fixup between hashcat and jtr style rule formats
+        I found myself doing this lookup/filtering a lot in different functiosn so I figured
+        I'd make a function to do that filtering.
 
         Inputs:
 
-            file_name: (String) If it is not None, write the ruleset to this filename
-
-            hash_type: (String) If not none, only use cracked passwords of hashes of this type
-            to generate the ruleset. If None, then it will use all cracked passwords regardless of type
-
-            filter: (Dict) All key/value pairs must match metadata for cracked passwords to
-            be used to generate the ruleset. If None the filter is ignored. If a value is None, then
-            it will use all passwords that have a metadata with the particular key set.
-
-        Returns:
-            ruleset_counter: (Counter) Counter object of all the rules generated by this function
-        """
-
-        # Create the list of strikes to base the rule generation off of
-        strikes = self.get_strikes_based_on_filter(hash_type=hash_type, filter=filter)
+            hash_id: (Int) The lookup id for the hash we want to compare the filter against
         
-        # Using a counter to order the results with the most effective rules first
-        ruleset_counter = Counter()
-
-        # Go through all the strikes, remove duplicate rules, and arrange rules in
-        # order of effectiveness
-        for strike_id in strikes:
-            if self.strike_list.strikes[strike_id].details['attack'] == "wordlist":
-                # Handle the "None" rule from things like input from stdin
-                if not self.strike_list.strikes[strike_id].details['rule']:
-                    ruleset_counter[":"] += 1
-                else:
-                    ruleset_counter[self.strike_list.strikes[strike_id].details['rule']] += 1
-
-        # If not printing to stdout, open the file 
-        if file_name:
-            try:
-                file = open(file_name, mode='w')
-                for rule in ruleset_counter.most_common():
-                    file.write(f"{rule[0]}\n")
-
-            except Exception as msg:
-                print(f"Exception writing to {file_name}: {msg}")
-                return
-
-        return ruleset_counter
-
-    def get_strikes_based_on_filter(self, hash_type=None, filter=None):
-        """
-        Returns a set of all strikes that match a filter
-
-        Inputs:
-
             hash_type: (String) If not none, only use cracked passwords of hashes of this type
             to generate the ruleset. If None, then it will use all cracked passwords regardless of type
 
@@ -698,52 +576,42 @@ class SessionMgr(LogHandlingMixin):
             it will use all passwords that have a metadata with the particular key set.
 
         Returns:
-            strikes: (List) List of all the strikes that match the filter
+            True: If the hash referenced by hash_id matches the filter criteria
+
+            False: If the hash referenced by hash_id does not match the filter criteria
         """
+        # Filter based on hash_type if specified
+        if hash_type:
+            if hash_id not in self.hash_list.type_lookup or self.hash_list.type_lookup[hash_id] != hash_type:
+                return False
 
-        strikes = []
+        # Next filter based on filters/metadata
+        if filter:
+            
+            # There can be multiple filters, so go through each one
+            for filter_key, filter_value in filter.items():
 
-        # Go through all the hash_ids that have strikes associated with them
-        for hash_id in self.strike_list.hash_id_lookup.keys():
+                # Need to find an instance where this hash maches something matching this filter
+                found = False
 
-            # Filter based on hash_type if specified
-            if hash_type:
-                if hash_id not in self.hash_list.type_lookup or self.hash_list.type_lookup[hash_id] != hash_type:
-                    continue
-
-            # Next filter based on filters/metadata
-            if filter:
-                # Assume it matches and break when it doesn't
-                match_filter = True
+                # Go through all the targets that match this filter
+                if filter_key not in self.target_list.meta_lookup:
+                    print(f"Warning: Invalid filter key specified: {filter_key}")
+                    print(f"Valid filter keys include: {self.target_list.meta_lookup.keys()}")
+                    return False
                 
-                # There can be multiple filters, so go through each one
-                for filter_key, filter_value in filter.items():
-
-                    # Need to find an instance where this hash maches something matching this filter
-                    found = False
-
-                    # Go through all the targets that match this filter
-                    for cur_value, target_ids in self.target_list.meta_lookup[filter_key].items():
-                        # If a value has been specified, skip not filter_value entries
-                        if filter_value:
-                            if cur_value != filter_value:
-                                continue
-                    
-                        for single_target in target_ids:
-                            if hash_id in self.target_list.targets[single_target].hashes:
-                                found = True
-                                break
-
-                    if not found:
-                        match_filter = False
-                        break
+                for cur_value, target_ids in self.target_list.meta_lookup[filter_key].items():
+                    # If a value has been specified, skip not filter_value entries
+                    if filter_value:
+                        if cur_value != filter_value:
+                            continue
                 
-                if not match_filter:
-                    continue
+                    for single_target in target_ids:
+                        if hash_id in self.target_list.targets[single_target].hashes:
+                            found = True
+                            break
 
-            # Match successful. Add all strikes associated with the hash_id
-            for strike_id in self.strike_list.hash_id_lookup[hash_id]:
-                if strike_id not in strikes:
-                    strikes.append(strike_id)
-
-        return strikes
+                if not found:
+                    return False
+        
+        return True

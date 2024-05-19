@@ -1,17 +1,15 @@
 ---
 # This defines where the potfiles are for this contest. This lets you load cracked hashes from them
-# as well as keep your JtR and HC potfiles synced.
+# as well as keep your JtR and HC potfiles synced. It also defines where the logs for each
+# password cracking program can be found.
 
   jtr_config:
     main_pot_file: "./challenge_files/CMIYC2022_Street/jtr_cmiyc2022.pot"
+    log_directory: "./challenge_files/CMIYC2022_Street/"
   
   hashcat_config:
     main_pot_file: "./challenge_files/CMIYC2022_Street/hc_cmiyc2022.potfile"
-
-# This is where password cracking tool log specific data will be saved
-  log_info:
-    default_log_folder: "./challenge_files/CMIYC2022_Street/"
-
+    log_directory: "./challenge_files/CMIYC2022_Street/"
 
 # This is information on where to load the challenge files. If they have additional metadata you
 # may need to write a custom function to import them, but in this case they are pure raw hash lists

@@ -9,6 +9,8 @@ line feature. So I'm going with inheritance even
 though I may never get around to using that functionality
 """
 
+import os
+
 # Local imports
 from .hash_fingerprint import hash_fingerprint
 
@@ -35,6 +37,18 @@ class PWCrackerMgr:
         self.pot_extension = ".pot"
         self.hash_type = "jtr_hash"
         self.name = "Generic Password Cracking Class"
+
+        # Initialize the log file directionry
+        if 'log_directory' in config:
+
+            self.log_directory = config['log_directory']
+            if not os.path.isdir(self.log_directory):
+                print("Warning, it doesn't look like the 'log_directory' in the config points")
+                print("to an existing folder.")
+                print(f"The current 'log_directory' is {self.log_directory}")
+
+        else:
+            self.log_directory = None 
 
     def is_potfile(self, filename):
         """

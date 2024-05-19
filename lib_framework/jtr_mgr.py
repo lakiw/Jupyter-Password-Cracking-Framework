@@ -498,6 +498,10 @@ class JTRMgr(PWCrackerMgr):
                     continue
                 elif log_msg.strip().startswith("- Lengths "):
                     continue
+                # Hmm, it might be nice to warn that there was an invalid rule being run.....
+                # Dev Note: Might want to add this back in with a warning
+                elif log_msg.strip().startswith("! Invalid rule at line"):
+                    continue
                 # We're getting the the hash type from the "Hash Type" log message. So we can skip this message
                 elif log_msg.strip().startswith("- Algorithm:"):
                     continue
@@ -559,10 +563,8 @@ class JTRMgr(PWCrackerMgr):
     
     def is_logfile(self, filename):
         """
-        Stub function that says if this log file is the correct format for this
+        Function that says if this log file is the correct format for this
         password cracker manager
-
-        This should be implimented in the actual password manager implimentations
 
         Inputs:
             filename: (str) The full path and filename of the log to parse

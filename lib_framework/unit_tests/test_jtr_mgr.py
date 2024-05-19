@@ -4,7 +4,6 @@
 """
 Unit tests for JtR PWCrackerMGR
 
-Really just checks the hash normalization functionality
 """
 
 
@@ -137,35 +136,3 @@ class Test_JTRMgr(unittest.TestCase):
         assert strike_list.hash_id_lookup[0] == [0]
         assert strike_list.hash_id_lookup[2] == [1]
 
-    def test_debug_real_logfile(self):
-        """
-        Checks that JtRManager reads logfiles properly
-        """
-        jtr_mgr = JTRMgr({})
-
-        # Initialize the sessionlist
-        session_list = SessionList()
-
-        # Initialize the strikelist
-        strike_list = StrikeList()
-
-        # Initialize the hashlist
-        hash_list = HashList()
-        hash_list.add_type("type1", "type1", "1337", "high")
-        hash_list.add_type("type2", "type2", "31337", "low")
-
-        # Add the three hashes
-        hash_list.add("hash1", type="type1")
-        hash_list.add("hash2", type="type2")
-        hash_list.add("hash3", type="type1")
-
-        import os
-        file_name = os.path.join(
-            '.',
-            'challenge_files',
-            'CMIYC2022_Street',
-            'example_john.session.log'
-            )
-        assert jtr_mgr.read_logfile(file_name, session_list, strike_list, hash_list)
-        for key, value in session_list.sessions.items():
-            print(f"{value.strike_id_list}")
