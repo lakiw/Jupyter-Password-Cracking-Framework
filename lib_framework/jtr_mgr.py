@@ -27,6 +27,36 @@ class JTRMgr(PWCrackerMgr):
         self.hash_type = "jtr_hash"
         self.name = "John the Ripper"
 
+    def print_command(self):
+        """
+        Prints out the "default" options for running the password cracker
+        so that pot files and log files are generated in a manner this framework expects
+
+        Inputs:
+            None
+
+        Returns:
+            command: (STR) The command that should be used to generate appropriate
+            potfiles and logfiles
+        """
+        command_parts = []
+        if self.path:
+            command_parts.append(f"{self.path}/john")
+        else:
+            command_parts.append("john")
+
+        if self.main_pot_file:
+            command_parts.append(f" --pot={self.main_pot_file}")
+
+        if self.log_directory:
+            command_parts.append(f" --session={self.log_directory}jtr_session")
+
+        command = "".join(command_parts)
+
+        print(command)
+
+        return command
+
     def normalize_hash(self, hash):
         """
         Convert from a password cracker hash format to a "normalized" format 

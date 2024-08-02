@@ -51,8 +51,8 @@ class Mixin:
         Reads in all of the password cracking log files (JtR and HashCat) and save the Sessions
         and Strikes.
 
-        This is a top level function to hide the default folder from the user so they don't need
-        to remember to pass it in.
+        JtR and Hashcat are both are included in the same call to make it easier to just paste in a folder
+        to this function if you are not using the top level "read_all_logs()" function
 
         Inputs:
             folder_name: The folder to read the logs in from

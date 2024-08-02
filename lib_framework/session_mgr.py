@@ -398,28 +398,39 @@ class SessionMgr(LogHandlingMixin, StrikeHandlingMixin):
 
         return
 
-    def create_left_list(self, is_jtr=True, file_name=None, hash_type=None, filter=None):
+    def create_left_list(self, format="jtr", file_name=None, hash_type=None, filter=None, silent=False):
         """
         Creates a hash file of uncracked hashes.
 
         Inputs:
-            is_jtr: (Bool) If True, this should format the left list for John the Ripper
+            format: (STR) Should be either "jtr", "hc", "index". "index" is a special option to
+            return indexes of the hashes in the framework vs. the actual hashes. That is useful
+            for feeding the results into other python code snippets.
 
-            file_name: (String) If it is not None, write the left list to this filename. If
+            file_name: (STR) If it is not None, write the left list to this filename. If
             it is None, write the results to stdout instead.
 
-            hash_type: (String) If not none, only write hashes of this type to the left list.
+            hash_type: (STR) If not none, only write hashes of this type to the left list.
             If None, then it will write all uncracked hashes to this list regardless of type
 
             filter: (Dict) All key/value pairs must match metadata for uncracked hashes to
             be written to the left list. If None the filter is ignored. If a value is None, then
             it will write all hashes that have a metadata with the particular key set.
 
+            silent: (BOOL) Even if the filename isn't specified, don't print out to stdout. The
+            full resutls are still sent via the return value. This is useful if you are feeding
+            the results of this function into a variable vs. making it human readable
+
         Returns:
             wordlist: (List) List of all the hashes written to disk or printed out
         """
         # Return Value
         wordlist = []
+
+        supported_formats = ['jtr','hc','index']
+        if format not in supported_formats:
+            print(f"Error: format needs to be one of the following options: {supported_formats}")
+            return
 
         # Sanity check on filter values to make sure they are correct
         if hash_type and hash_type not in self.hash_list.type_info:
@@ -461,17 +472,20 @@ class SessionMgr(LogHandlingMixin, StrikeHandlingMixin):
 
             # Add this hash to the left list
             # Format the hash for the target password cracking program
-            if is_jtr:
+            if format == "jtr":
                 out_hash = self.jtr.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
                 # Add in the hash_id as a username to make parsing the log files easier
                 out_hash = f"{hash_id}:{out_hash}"
+            # Not a password cracker, instead use the index to the hash in this framework
+            elif format == "index":
+                out_hash = hash_id
             else:
                 out_hash = self.hc.format_hash(hash.hash, self.hash_list.type_lookup[hash_id])
             
             wordlist.append(out_hash)
             if file:
                 file.write(f"{out_hash}\n")
-            else:
+            elif not silent:
                 print(f"{out_hash}")
 
         # Close the file

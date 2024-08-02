@@ -7,3 +7,7 @@ pyyaml
 
 # Analysis/Graphing modules
 matplotlib
+
+# Because Korelogic is cruel
+# Used for PGP messages (aka submission to CMIYC contests
+PGPy

@@ -18,3 +18,7 @@ challenge_files/CMIYC2023_Street/sales_only.hash
 challenge_files/CMIYC2023_Street/sales_only.dic
 challenge_files/CMIYC2023_Street/epoc_bcrypt.hash
 challenge_files/CMIYC2023_Street/epoc_bcrypt.dic
+
+# Exclude private pgp keys
+*.asc
+!defcon-contest-sub-2024.pub.asc

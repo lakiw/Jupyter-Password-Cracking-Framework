@@ -23,6 +23,39 @@ class HashcatMgr(PWCrackerMgr):
         self.pot_extension = ".potfile"
         self.hash_type = "hc_hash"
         self.name = "Hashcat"
+        self.seperator = ":"
+
+    def print_command(self):
+        """
+        Prints out the "default" options for running the password cracker
+        so that pot files and log files are generated in a manner this framework expects
+
+        Inputs:
+            None
+
+        Returns:
+            command: (STR) The command that should be used to generate appropriate
+            potfiles and logfiles
+        """
+        command_parts = []
+        if self.path:
+            command_parts.append(f"{self.path}/hashcat")
+        else:
+            command_parts.append("hashcat")
+
+        if self.main_pot_file:
+            command_parts.append(f" -o {self.main_pot_file}")
+
+        if self.log_directory:
+            command_parts.append(f" --debug-file {self.log_directory}hc_session")
+            command_parts.append(f" --debug-mode 5")
+            command_parts.append(f" -p '{self.seperator}'")
+
+        command = "".join(command_parts)
+
+        print(command)
+
+        return command
 
     def is_logfile(self, filename, format=5, delimeter=":", verbose=False):
         """

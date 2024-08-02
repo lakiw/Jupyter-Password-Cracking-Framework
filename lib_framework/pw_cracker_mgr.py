@@ -301,3 +301,19 @@ class PWCrackerMgr:
                             False if an error occured or this is not a supported format
         """
         return False
+    
+    def print_command(self):
+        """
+        Stub function that prints out the "default" options for running the password cracker
+        so that pot files and log files are generated in a manner this framework expects
+
+        This should be implimented in the actual password manager implimentations
+
+        Inputs:
+            None
+
+        Returns:
+            command: (STR) The command that should be used to generate appropriate
+            potfiles and logfiles
+        """
+        return "Not Implimented"

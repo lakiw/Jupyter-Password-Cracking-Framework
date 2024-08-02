@@ -12,8 +12,16 @@ I wrote three blog posts talking about how to use JupyterLab to aid in compeatin
 
 ## Installing JupyterLab
 
+
 To install JupyterLab and required libraires for this framework (such as pyyaml) you can use the included **requirements.txt** file. E.g.
 - pip3 install -r requirements.txt
+
+Note: On some sytems, (such as Ubuntu), it doesn't allow you by default to install tools globably using pip3. Threfore to get Jupyter Lab to actually install you may need to run a command such as:
+- sudo apt install python3-jupyterlab
+
+Another option would be to make sure the local directory that JupyterLabs is installed to is in your environmental $PATH variable.
+
+Note 2: One challenge I found is that I couldn't run Jupyter lab on Python3.6. It seems to need at least Python3.7.
 
 ## Running the Framework:
 From a shell in the install directory run:
