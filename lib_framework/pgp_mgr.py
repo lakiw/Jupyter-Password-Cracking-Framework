@@ -137,34 +137,36 @@ class PGPMgr:
         """
         Creates the text for the initial KoreLogic team registration e-mail
 
+        This is a wrapper around encrypt_msg to make it easier for
+        teams to get the team creation email format correct
+
         Inputs:
             team_name: (String) The name of your team.
 
             attachment_filename: (String) Overrides default attachment to write the file
+
+        Returns:
+            encrypted_message: (String) The message that you can paste into an e-mail
         """
         # Create the message
-        message = pgpy.PGPMessage.new(f"Team: {team_name}\n\n{str(self.my_private_key.pubkey)}")
-        
-        # Sign the message
-        message |= self.my_private_key.sign(message)
+        message = f"Team: {team_name}\n\n{str(self.my_private_key.pubkey)}"
 
-        # Encrypt the message
-        encrypted_message = self.their_public_key.encrypt(message)
-
-        print(str(encrypted_message))
-
-        if attachment_filename or self.default_attachment:
-            if attachment_filename:
-                filename = attachment_filename
-            else:
-                filename = self.default_attachment
-
-            with open(filename, "w") as pgp_attachment:
-                pgp_attachment.write(str(encrypted_message))
+        encrypted_message = self.encrypt_msg(message, attachment_filename)
 
         return encrypted_message
     
     def encrypt_msg(self, msg, attachment_filename=None):
+        """
+        Signs and Encrypts a message to submit to KoreLogic
+
+        Inputs:
+            msg: (String) The message you want to sign and encrypt
+
+            attachment_filename: (String) Overrides default attachment to write the file
+
+        Returns:
+            encrypted_message: (String) The message that you can paste into an e-mail
+        """
         # Create the message
         message = pgpy.PGPMessage.new(msg)
         
