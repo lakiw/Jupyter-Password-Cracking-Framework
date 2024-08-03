@@ -41,7 +41,8 @@ def load_challenge_files(details, hash_list, target_list):
             return _load_plain_hash(details, hash_list, target_list)
         elif details['format'] == 'cmiyc_2023':
             return _load_cmiyc_2023(details, hash_list, target_list)
-        
+        elif details['format'] == 'mixed_list_with_usernames':
+            return _load_mixed_list_with_usernames(details, hash_list, target_list)
         else:
             print(f"Error, format {details['format']} not supported. Add it to challenge_specific_functions.py")
             return False
@@ -185,3 +186,91 @@ def _load_cmiyc_2023(details, hash_list, target_list):
             target_list.add(metadata=metadata, hashes=[hash_index])
     print("Done loading the challenge yaml file.")
     return True
+
+
+def _load_mixed_list_with_usernames(details, hash_list, target_list):
+    """
+    Loads from a list that has multiple hash types stored in it, one per line
+    These hashes also have a username in front of them
+
+    Inputs:
+        details: (DICT) Contains info needed to load the challenge file
+
+        hash_list: (HashList) Place to store the hashes being loaded
+
+        target_list: (TargetList) Place to store the targets being loaded
+
+    Returns:
+        True: The hash file was loaded sucessfully
+
+        False: An error occured loading the hashes
+    """
+    print(f"Starting to load challenge file: {details['file']}. This may take a minute or two")
+
+    hash_type = None
+    length_helper = {}
+
+    # Used to create a target that has all of these hashes
+    target_hash_id_list = []
+
+    # Check to see if the hash type is defined, and if it needs a length helper for it
+    # Aka a lot of 128 bit hashes look the same
+    if 'hash_types' in details:
+        for hash_type in details['hash_types']:
+            hash_length = get_len_for_type(hash_type)
+            if hash_length:
+                length_helper[hash_length] = hash_type
+
+    with open(details['file']) as challenge_file:
+        lines = challenge_file.readlines()
+        for line in lines:
+            
+            # Remove trailing whitespace and newlines
+            line = line.strip()
+            
+            # Skip blank lines
+            if len(line) == 0:
+                continue
+
+            # Split the username and the password hash
+            split_list = line.split(":",1)
+            if len(split_list) != 2:
+                print(f"Warning: Missing username: {line}")
+                username = ""
+                hash = split_list[0]
+            else:
+                username = split_list[0]
+                hash = split_list[1]
+
+            # Perform a sanity check to make sure the hash looks legit
+            hash_info = hash_fingerprint(hash, length_helper)
+
+            if not hash_info['type']:
+                print(f"Warning: Unsupported Hash: {hash}")
+            if hash_type and ('hash_types' in details) and (hash_type not in details['hash_types']):
+                print(f"Warning: the hash type from autodetection identifies the hash as {hash_info['type']} when the config specified {details['type']}")
+
+            # Add the type
+            # If the type has been added before this will not make any changes
+            hash_list.add_type(
+                type=hash_info['type'],
+                jtr_mode=hash_info['jtr_mode'],
+                hc_mode=hash_info['hc_mode'],
+                cost=hash_info['cost']
+            )
+
+            # Save the hash
+            hash_list.add(hash, type=hash_info['type'])
+
+            # Create a target/metadata for this list
+            hash_index = hash_list.hash_lookup[hash]
+            if hash_index not in target_hash_id_list:
+                target_hash_id_list.append(hash_index)
+
+    if 'source' in details:
+        target_list.add(metadata={'source':details['source'], 'username':username}, hashes=target_hash_id_list)
+
+    print("Done loading the challenge file.")
+    return True
+
+

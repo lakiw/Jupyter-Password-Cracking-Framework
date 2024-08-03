@@ -107,6 +107,31 @@ def read_pgp_key(filename):
     return key_string
 
 
+def decrypt_challenge_files(filename, passphrase, attachment_filename=None):
+    """
+    Since Korelogic is releasing challenge files encrypted via a PGP passphrase
+    we need an easy way to decrypt them
+
+    Inputs:
+        filename: (String) The full filename + path to the challenge file
+
+        passphrase: (String) The pasphrase to decrypt the files
+
+    Returns:
+        results: (Bytearray) The results as a bytearray. You can
+        convert them to a string by calling results.decode()
+    """
+    message_from_file = pgpy.PGPMessage.from_file(filename)
+    results = message_from_file.decrypt(passphrase).message
+
+    if attachment_filename:
+        # Saving it as a bytearray since no idea what KoreLogic
+        # will throw our way
+        with open(attachment_filename, "wb") as save_file:
+                save_file.write(results)
+    return results
+
+
 class PGPMgr:
     """
     Manages encrypting/decrypting messages using PGP

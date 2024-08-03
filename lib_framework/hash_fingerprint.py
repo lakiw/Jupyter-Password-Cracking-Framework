@@ -69,7 +69,7 @@ def hash_fingerprint(raw_hash, length_helper={}):
     elif raw_hash.startswith("{SSHA}"):
         hash_info['jtr_mode'] = "Salted-SHA1"
         hash_info['hc_mode'] = "111"
-        hash_info['type'] = "ssha"
+        hash_info['type'] = "nsldaps"
         hash_info['cost'] = "medium"
 
     # mysql CRAM hashes    
@@ -86,6 +86,14 @@ def hash_fingerprint(raw_hash, length_helper={}):
         hash_info['type'] = "mssql05"
         hash_info['cost'] = "low"
     
+    # Zip hash
+    elif "$pkzip$1*1*2*0" in raw_hash:
+        hash_info['jtr_mode'] = "pkzip"
+        # HC has multiple possible modes. Just picking what seems to work
+        # for KoreLogic contests
+        hash_info['hc_mode'] = "17200"
+        hash_info['type'] = "pkzip"
+        hash_info['cost'] = "low"
 
     # Potentially raw_sha256
     elif len(raw_hash) in length_helper:
