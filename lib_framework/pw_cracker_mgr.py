@@ -88,6 +88,9 @@ class PWCrackerMgr:
                         return False
                     if checked_lines > 10:
                         break
+        # If the file doesn't exist, no sense spamming output, just exit
+        except FileNotFoundError:
+            return False
         except Exception as msg:
             print(f"Exception when trying to open the {self.name} pot file: {filename} : {msg}")
             return False
@@ -114,7 +117,7 @@ class PWCrackerMgr:
         """
         # Check that it looks like a potfile first
         if not self.is_potfile(filename):
-            print(f"Can not load potfile {filename} since it did not look like a potfile")
+            # print(f"Can not load potfile {filename} since it did not look like a potfile")
             return -1
 
         new_cracks = 0
@@ -178,11 +181,11 @@ class PWCrackerMgr:
             -1: If a problem occured
         """
         new_cracks = 0
+        pot_lookup = {}
 
         try:
             # First create a quick hash lookup of cracked passwords so we can
             # then quickly identify missing passwords we need to add
-            pot_lookup = {}
             with open(filename) as potfile:
                 lines = potfile.readlines()
                 for line in lines:
@@ -202,10 +205,18 @@ class PWCrackerMgr:
                         print(f"Warning, you have duplicate hashes in your potfile {filename}: {hash}:{plain}")
                     else:
                         pot_lookup[standard_hash] = plain
+        except FileNotFoundError:
+            # I'm letting this continue so if the potfile does not exist it will
+            # be created in the next step and cracked hashes copied over to it.
+            pass
+        except Exception as msg:
+            print(f"Exception when trying to parse {self.name} pot file: {msg}")
+            return -1
 
+        try:
             # Now go through all the cracked hashes and see if any are missing
             # If so, append them to the pot file.
-            with open(filename, mode='a') as potfile:
+            with open(filename, mode='a+') as potfile:
                 for index, cur_hash in hash_list.hashes.items():
 
                     # Don't add hashes of unknown type to the pot files since that might add junk
@@ -224,6 +235,8 @@ class PWCrackerMgr:
                             print(f"Warning, the hash {cur_hash.hash} in the potfile has a different plaintext then in the cracked list")
                             print(f"Potfile_Plaintext:{pot_lookup[cur_hash.hash]}")
                             print(f"Main_Hashlist_Plaintext:{cur_hash.plaintext}")
+        except FileNotFoundError:
+            return 0
         except Exception as msg:
             print(f"Exception when trying to parse {self.name} pot file: {msg}")
             return -1

@@ -1,0 +1,4 @@
+$dynamic_0$e9fa198e766d7b9bdfdb872032b2c6ee:3-2-1
+{SSHA}4Sq+ps0Yeo9HvPV45aeF8Z4wWa1vUlpnTkZIRg==:Contact
+$pkzip$1*1*2*0*87*a1*e4ef59bd*0*3e*8*87*9c73*754cd1cfd5542001e76e45b11affc3b86210074404a61ce7f16c55abf44a2aa5745aeb31555a367961b7c1824291cca25e70b099993bda973d6dc4de26546ae9f72670e20158781f89119fbd790b2e838161bb176f01de89eb4f6e381dbf5812db27314dabe426e8765375afb4099ece5b0c8181f0b629f9e646d62df34440e459090ba1bececb*$/pkzip$:When everything happens
+$2a$08$SBTibTPJWVGsJzXiaVOzZO9cp8DXeaaQtTCdVe8QxT75N.G2nuk76:I am a computer at Bell Laboratories and I am learning to talk.

@@ -137,6 +137,19 @@ class SessionMgr(LogHandlingMixin, StrikeHandlingMixin):
             if info['total'] != 0:
                 print(f"{type:<15}:{info['total']:<10}:{info['cracked']:<10}:{info['total']-info['cracked']:<10}:{info['cracked']/info['total']:.0%}")
 
+    def print_attack_formats(self):
+        """
+        Prints the JtR and Hashcat formats/types to use when targeting hashes
+
+        This is helpful for me because I always forget what the mode is and have
+        to look it up
+        """
+        print("Algorithm      :Num Remaining   :JtR Format      :HC Type")
+        for type, info in self.hash_list.type_info.items():
+            # Don't print out formats/types that don't have any hashes associated with them
+            if info['total'] != 0:
+                print(f"{type:<15}:{info['total']-info['cracked']:<16}:{info['jtr_mode']:<16}:{info['hc_mode']}")
+
     def print_score(self):
         """
         Prints the current score as defined by the config file

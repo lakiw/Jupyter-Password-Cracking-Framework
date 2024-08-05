@@ -1,0 +1,4 @@
+Do not submit the zip passphrase, it is not worth anything.
+
+user5's password is the sentence spoken by the synthesized voice
+introducing itself in episode 101.

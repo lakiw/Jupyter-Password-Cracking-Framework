@@ -101,6 +101,10 @@ class HashList:
         # Used for quick lookups
         self.hash_lookup = {}
 
+        # Used to quickly look up submission status for different hashes
+        # 0 = not submitted; 1 submitted; 2 = acknowledged
+        self.sub_lookup = {}
+
         # Key = index, value = hash type
         # Used to associate a cracking mode with a hash
         self.type_lookup = {}
@@ -220,6 +224,10 @@ class HashList:
             self.hashes[self.next_index] = Hash(hash, plaintext)
             self.type_lookup[self.next_index] = type
             self.type_list[type].append(self.next_index)
+
+            # Update the submission info
+            self.sub_lookup[self.next_index] = 0
+
             self.next_index += 1
 
             # Update the statistics info

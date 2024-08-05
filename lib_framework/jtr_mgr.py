@@ -509,6 +509,10 @@ class JTRMgr(PWCrackerMgr):
                     continue
                 elif log_msg.strip().startswith("- Passwords in this logfile are UTF-8 encoded"):
                     continue
+                elif log_msg.strip().startswith("Sorting salts, for deterministic salt-resume"):
+                    continue
+                elif log_msg.strip().startswith("- SingleWordsPairMax increased to"):
+                    continue
                 # We get the actual dictionary from an earlier logfile
                 elif log_msg.strip().startswith("- loading wordfile"):
                     continue

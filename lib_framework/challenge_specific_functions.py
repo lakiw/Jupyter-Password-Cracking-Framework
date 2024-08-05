@@ -112,6 +112,11 @@ def _load_plain_hash(details, hash_list, target_list):
                 cost=hash_info['cost']
             )
 
+            # Perform further normalization for certain file encryption hashes
+            if hash_info['type'] == "pkzip":
+                split_line = line.split('$pkzip')[1]
+                line = f"$pkzip{split_line.split('pkzip$')[0]}pkzip$"
+
             # Save the hash
             hash_list.add(line, type=hash_info['type'])
 
@@ -264,11 +269,10 @@ def _load_mixed_list_with_usernames(details, hash_list, target_list):
 
             # Create a target/metadata for this list
             hash_index = hash_list.hash_lookup[hash]
-            if hash_index not in target_hash_id_list:
-                target_hash_id_list.append(hash_index)
-
-    if 'source' in details:
-        target_list.add(metadata={'source':details['source'], 'username':username}, hashes=target_hash_id_list)
+            metadata = {'username':username}
+            if 'source' in details:
+                metadata['source'] = details['source']
+            target_list.add(metadata=metadata, hashes=[hash_index])
 
     print("Done loading the challenge file.")
     return True
