@@ -39,7 +39,55 @@ def hash_fingerprint(raw_hash, length_helper={}):
         hash_info['hc_mode'] = "3200"
         hash_info['type'] = "bcrypt"
         hash_info['cost'] = "high"
+
+    if raw_hash.startswith("$2k$"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "bkr256"
+        hash_info['cost'] = "high"
+
+    if raw_hash.startswith("$2b$"):
+        hash_info['jtr_mode'] = "bcrypt"
+        hash_info['hc_mode'] = "3200"
+        hash_info['type'] = "bcr256"
+        hash_info['cost'] = "high"
+
+    if raw_hash.startswith("v1;PPH1_MD4"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "adsync"
+        hash_info['cost'] = "high"
+
+    if raw_hash.startswith("{x-isSHA512, 15000}"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "saph512"
+        hash_info['cost'] = "high"
     
+    elif raw_hash.startswith("$shiro2$"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "shiro2"
+        hash_info['cost'] = "high"
+
+    elif raw_hash.startswith("$sm3$"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "sm3crypt"
+        hash_info['cost'] = "high"
+
+    elif raw_hash.startswith("$RC2$"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "unknown"
+        hash_info['type'] = "rc2"
+        hash_info['cost'] = "medium"
+
+    elif raw_hash.startswith("$NT$"):
+        hash_info['jtr_mode'] = "NT"
+        hash_info['hc_mode'] = "1000"
+        hash_info['type'] = "nt"
+        hash_info['cost'] = "low"
+
     elif raw_hash.startswith("$5$"):
         hash_info['jtr_mode'] = "sha256crypt"
         hash_info['hc_mode'] = "7400"
@@ -119,6 +167,20 @@ def get_len_for_type(type):
         return 16
     elif type.lower() == "raw-md4":
         return 32
+    elif type.lower() == "striphash33":
+        return 33
+    elif type.lower() == "striphash34":
+        return 34
+    elif type.lower() == "striphash35":
+        return 35
+    elif type.lower() == "striphash36":
+        return 36
+    elif type.lower() == "striphash37":
+        return 37
+    elif type.lower() == "striphash38":
+        return 38
+    elif type.lower() == "striphash39":
+        return 39     
     elif type.lower() == "raw-md5":
         return 32
     elif type.lower() == "raw-sha1":
@@ -154,6 +216,62 @@ def _get_hash_info(type, raw_hash):
             'jtr_hash':None,
             'hc_mode':"5100",
             'type':"half-md5",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash33":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash33",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash34":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash34",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash35":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash35",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash36":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash36",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash37":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash37",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash38":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash38",
+            'cost':"low"
+        }
+    elif type.lower() == "striphash39":
+        hash_info = {
+            'jtr_mode':"raw-SHA1",
+            'jtr_hash':f"$dynamic_26${raw_hash}",
+            'hc_mode':"100",
+            'type':"striphash39",
             'cost':"low"
         }
     elif type.lower() == "raw-md5":

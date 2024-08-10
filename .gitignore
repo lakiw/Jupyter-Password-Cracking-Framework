@@ -26,3 +26,10 @@ challenge_files/CMIYC2024_Test/hashes/test_1.zip.pgp
 # Exclude private pgp keys
 *.asc
 !defcon-contest-sub-2024.pub.asc
+
+# Exclude submissions save files
+*.sav
+
+# Exclude CMIYC2024 Cracking files
+z*.ipynb
+challenge_files/CMIYC2024_Street/

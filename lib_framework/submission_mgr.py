@@ -110,7 +110,7 @@ class SubmissionMgr:
                         # Mark it pending, and add it to the list to submit
                         hash_list.sub_lookup[hash_id] = 1
                         self.num_in_progress += 1
-                        submit_results.append(f"{hash_list.hashes[hash_id]}:{hash_list.hashes[hash_id].plaintext}")
+                        submit_results.append(f"{hash_list.hashes[hash_id].hash}:{hash_list.hashes[hash_id].plaintext}")
 
         # Save the results if there are any
         if len(submit_results) != 0:
@@ -154,7 +154,7 @@ class SubmissionMgr:
                 False: It did not work correctly
         """
         lines = korelogic_msg.split("\n")
-        if len(lines) != 9:
+        if len(lines) < 9:
             print("Hmm, something is wrong/different with the korelogic submission acknowledgement message")
             print("You might want to look into this")
             return False

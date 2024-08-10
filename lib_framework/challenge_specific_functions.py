@@ -155,6 +155,13 @@ def _load_cmiyc_2023(details, hash_list, target_list):
     # This challenge had raw-MD5, raw-sha1, and raw-sha256
     length_helper = {
         32:"raw-md5",
+        34:"striphash33",
+        34:"striphash34",
+        35:"striphash35",
+        36:"striphash36",
+        37:"striphash37",
+        38:"striphash38",
+        39:"striphash39",
         40:"raw-sha1",
         64:"raw-sha256",
     }
