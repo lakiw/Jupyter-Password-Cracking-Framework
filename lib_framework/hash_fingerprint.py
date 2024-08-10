@@ -57,6 +57,12 @@ def hash_fingerprint(raw_hash, length_helper={}):
         hash_info['hc_mode'] = "unknown"
         hash_info['type'] = "adsync"
         hash_info['cost'] = "high"
+    
+    if raw_hash.startswith("$radmin3$"):
+        hash_info['jtr_mode'] = "unknown"
+        hash_info['hc_mode'] = "29200"
+        hash_info['type'] = "radmin3"
+        hash_info['cost'] = "medium"
 
     if raw_hash.startswith("{x-isSHA512, 15000}"):
         hash_info['jtr_mode'] = "unknown"
